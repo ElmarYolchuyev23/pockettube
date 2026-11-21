@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Interface font is now Inter (bundled in `assets/fonts`); DejaVu Sans stays as a fallback.
+
 ## 1.0
 
 - New name and look: **PocketTube**, with its own logo and a purple accent instead of the YouTube-style red.

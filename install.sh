@@ -102,6 +102,10 @@ for f in main.py youtube.py store.py services.py sounds.py i18n.py player.py pla
     copy "system/pockettube/$f" "$APP/$f"
 done
 copy system/pockettube/assets/logo.png "$APP/assets/logo.png"
+mkdir -p "$APP/assets/fonts"
+for f in Inter-Regular.ttf Inter-SemiBold.ttf Inter-LICENSE.txt; do
+    copy "system/pockettube/assets/fonts/$f" "$APP/assets/fonts/$f"
+done
 copy "roms/ports/$NAME.sh" "$PORTS/$NAME.sh"
 copy "roms/ports/$NAME.sh.keys" "$PORTS/$NAME.sh.keys"
 for f in pockettube-icon.png pockettube-marquee.png pockettube-screenshot.png; do

@@ -3,7 +3,7 @@ import os, sys, shutil, tempfile, types
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONTS = sys.argv[1]
+FONTS = sys.argv[1] if len(sys.argv) > 1 else ""  # folder with DejaVu, used only as a fallback
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "docs", "screenshots")
 os.makedirs(OUT, exist_ok=True)
 work = tempfile.mkdtemp()
@@ -35,8 +35,9 @@ services.free_space = lambda p: 48 * 1024 ** 3
 services.Downloader = lambda *a, **k: types.SimpleNamespace(kick=lambda: None, cancel=lambda v: None)
 import main
 
-main.FONT = os.path.join(FONTS, "DejaVuSans.ttf")
-main.FONT_BOLD = os.path.join(FONTS, "DejaVuSans-Bold.ttf")
+if FONTS:
+    main.FALLBACK_FONT = os.path.join(FONTS, "DejaVuSans.ttf")
+    main.FALLBACK_FONT_BOLD = os.path.join(FONTS, "DejaVuSans-Bold.ttf")
 main.App.show_splash = lambda self: main.load_backend()
 main.time.strftime = lambda fmt, *a: "12:00"
 main.Task = lambda fn, *a: types.SimpleNamespace(done=True, result=None, error=None)

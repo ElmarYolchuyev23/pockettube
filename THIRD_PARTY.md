@@ -1,6 +1,6 @@
 # Third-party components
 
-The repository doesn't contain these programs. The installer downloads yt-dlp and deno from their official release pages;
+The repository doesn't contain these programs, except the Inter font. The installer downloads yt-dlp and deno from their official release pages;
 mpv, Python, pygame, ffmpeg and the DejaVu fonts come with the console firmware.
 
 | Component | Where it comes from | License |
@@ -11,7 +11,8 @@ mpv, Python, pygame, ffmpeg and the DejaVu fonts come with the console firmware.
 | [mpv](https://mpv.io) | console firmware | GPL-2.0-or-later / LGPL-2.1-or-later |
 | [FFmpeg](https://ffmpeg.org) | console firmware | LGPL-2.1-or-later / GPL-2.0-or-later |
 | [pygame](https://www.pygame.org) | console firmware | LGPL-2.1 |
-| [DejaVu Fonts](https://dejavu-fonts.github.io) | console firmware | Bitstream Vera / DejaVu (free) |
+| [DejaVu Fonts](https://dejavu-fonts.github.io) | console firmware (fallback font) | Bitstream Vera / DejaVu (free) |
+| [Inter](https://rsms.me/inter/) 4.1 (Regular, SemiBold) | bundled in the repository, `pockettube/assets/fonts` | SIL Open Font License 1.1 (`assets/fonts/Inter-LICENSE.txt`) |
 
 PocketTube's own code is released under the MIT license (see [LICENSE](LICENSE)).
 

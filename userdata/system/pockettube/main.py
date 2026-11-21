@@ -15,20 +15,31 @@ APP_VERSION = "1.0"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_NAME = "PocketTube"
 W, H = 640, 480
-FONT = "/usr/share/fonts/dejavu/DejaVuSans.ttf"
-FONT_BOLD = "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"
+FONT = os.path.join(APP_DIR, "assets", "fonts", "Inter-Regular.ttf")
+FONT_BOLD = os.path.join(APP_DIR, "assets", "fonts", "Inter-SemiBold.ttf")
+FALLBACK_FONT = "/usr/share/fonts/dejavu/DejaVuSans.ttf"
+FALLBACK_FONT_BOLD = "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"
 
+# Palette, darkest to lightest
 BG = (15, 15, 15)
-SURF = (39, 39, 39)
+FIELD = (18, 18, 18)
 SURF_DARK = (24, 24, 24)
+SKEL = (28, 28, 28)
+SURF_LOW = (30, 30, 30)
 LINE = (34, 34, 34)
-FG = (241, 241, 241)
-DIM = (170, 170, 170)
+SURF = (39, 39, 39)
+SURF_HI = (58, 58, 58)
+TRACK = (77, 77, 77)
 MUTED = (138, 138, 138)
+DIM = (170, 170, 170)
+SOFT = (204, 204, 204)
+FG = (241, 241, 241)
+INK = (15, 15, 15)
+VEIL = (0, 0, 0, 170)
 ACC = (124, 92, 255)
 LIVE_RED = (230, 33, 60)
 ERR_RED = (255, 90, 110)
-INK = (15, 15, 15)
+ERR_SOFT = (255, 138, 155)
 ERR_BG, ERR_FG = (58, 20, 24), (255, 218, 223)
 TINTS = [(59, 47, 74), (47, 74, 68), (74, 59, 47), (47, 61, 74), (74, 47, 59), (59, 74, 47)]
 
@@ -60,7 +71,10 @@ _fonts = {}
 def font(size, bold=False):
     key = (size, bold)
     if key not in _fonts:
-        _fonts[key] = pygame.font.Font(FONT_BOLD if bold else FONT, size)
+        try:
+            _fonts[key] = pygame.font.Font(FONT_BOLD if bold else FONT, size)
+        except (pygame.error, OSError):
+            _fonts[key] = pygame.font.Font(FALLBACK_FONT_BOLD if bold else FALLBACK_FONT, size)
     return _fonts[key]
 
 
@@ -227,15 +241,15 @@ class App:
     def draw_status(self, right_x, cy):
         s = self.screen
         clock = time.strftime("%H:%M")
-        x = right_x - text(s, clock, (right_x, cy - 8), 12, (204, 204, 204), True, right=True) - 10
+        x = right_x - text(s, clock, (right_x, cy - 8), 12, SOFT, True, right=True) - 10
         lvl = services.battery_level()
         if lvl is not None:
             x -= 22
-            pygame.draw.rect(s, (204, 204, 204), (x, cy - 6, 19, 11), 2, border_radius=3)
-            pygame.draw.rect(s, (204, 204, 204), (x + 19, cy - 2, 2, 4))
-            pygame.draw.rect(s, (204, 204, 204) if lvl > 15 else ERR_RED, (x + 3, cy - 3, max(1, int(13 * lvl / 100)), 5))
+            pygame.draw.rect(s, SOFT, (x, cy - 6, 19, 11), 2, border_radius=3)
+            pygame.draw.rect(s, SOFT, (x + 19, cy - 2, 2, 4))
+            pygame.draw.rect(s, SOFT if lvl > 15 else ERR_RED, (x + 3, cy - 3, max(1, int(13 * lvl / 100)), 5))
             x -= 8
-        self.draw_wifi(x - 8, cy + 5, (204, 204, 204), 0.8, slash=not services.is_online())
+        self.draw_wifi(x - 8, cy + 5, SOFT, 0.8, slash=not services.is_online())
 
     def draw_header(self, active=None, title=None):
         s = self.screen
@@ -312,7 +326,7 @@ class App:
         cy = y + 10 + len(lines) * 18
         text(s, v.get("channel", ""), (156, cy), 12, DIM, max_w=W - 200)
         if progress is not None:
-            pygame.draw.rect(s, (58, 58, 58), (156, cy + 22, 160, 4), border_radius=2)
+            pygame.draw.rect(s, SURF_HI, (156, cy + 22, 160, 4), border_radius=2)
             pygame.draw.rect(s, ACC, (156, cy + 22, int(160 * progress), 4), border_radius=2)
             text(s, status, (324, cy + 16), 12, DIM)
         elif status:
@@ -341,7 +355,7 @@ class App:
             pygame.draw.rect(s, LINE, (16, y + 5, 128, 72), border_radius=8)
             pygame.draw.rect(s, SURF, (156, y + 10, int(4.4 * a), 14), border_radius=7)
             pygame.draw.rect(s, LINE, (156, y + 32, int(4.4 * b), 14), border_radius=7)
-            pygame.draw.rect(s, (28, 28, 28), (156, y + 54, 130, 10), border_radius=5)
+            pygame.draw.rect(s, SKEL, (156, y + 54, 130, 10), border_radius=5)
 
     def draw_button(self, label, key, x, y, w, focused, primary=None):
         s = self.screen
@@ -398,7 +412,7 @@ class App:
                 pygame.draw.rect(s, FG, (x - 5, y - 5, 198, 116), 3, border_radius=11)
             self.draw_thumb(v["id"], x, y, 188, 106, i)
             dur = v.get("duration") or 0
-            pygame.draw.rect(s, (77, 77, 77), (x, y + 103, 188, 3))
+            pygame.draw.rect(s, TRACK, (x, y + 103, 188, 3))
             if dur:
                 pygame.draw.rect(s, ACC, (x, y + 103, int(188 * min(1, (v.get("pos") or 0) / dur)), 3))
             live = v.get("live")
@@ -436,8 +450,8 @@ class App:
         else:
             self.draw_header("search")
         field = pygame.Rect(16, 58, W - 80, 36)
-        pygame.draw.rect(s, (18, 18, 18), field, border_radius=18)
-        pygame.draw.rect(s, (58, 58, 58), field, 1, border_radius=18)
+        pygame.draw.rect(s, FIELD, field, border_radius=18)
+        pygame.draw.rect(s, SURF_HI, field, 1, border_radius=18)
         pygame.draw.circle(s, DIM, (field.x + 20, field.y + 16), 6, 2)
         pygame.draw.line(s, DIM, (field.x + 24, field.y + 20), (field.x + 29, field.y + 25), 2)
         w = text(s, self.query or "", (field.x + 38, field.y + 8), 15, FG, max_w=field.w - 60)
@@ -453,7 +467,7 @@ class App:
             if on:
                 pygame.draw.rect(s, SURF, (12, y - 2, W - 24, 24), border_radius=6)
             pygame.draw.circle(s, DIM, (26, y + 10), 5, 2)
-            text(s, sg, (40, y + 2), 13, FG if on else (204, 204, 204), max_w=W - 60)
+            text(s, sg, (40, y + 2), 13, FG if on else SOFT, max_w=W - 60)
         rows = KB[self.lang]
         top, kh, gap = 210, 40, 6
         cols = max(len(r) for r in rows)
@@ -490,7 +504,7 @@ class App:
         label = T("filters_n", n=n) if n else T("filters")
         fw = font(12).size(label)[0] + 46
         fx = W - 110 - fw
-        pygame.draw.rect(s, ACC if n else (58, 58, 58), (fx, 61, fw, 24), border_radius=12)
+        pygame.draw.rect(s, ACC if n else SURF_HI, (fx, 61, fw, 24), border_radius=12)
         kw = self.draw_key("X", fx + 4, 64)
         text(s, label, (fx + kw + 10, 66), 12, FG)
         loading = self.search_task and not self.search_task.done
@@ -508,11 +522,11 @@ class App:
     def draw_filters(self):
         s = self.screen
         veil = pygame.Surface((W, H), pygame.SRCALPHA)
-        veil.fill((0, 0, 0, 170))
+        veil.fill(VEIL)
         s.blit(veil, (0, 0))
         pw, ph = 460, 290
         px, py = (W - pw) // 2, 70
-        pygame.draw.rect(s, (24, 24, 24), (px, py, pw, ph), border_radius=14)
+        pygame.draw.rect(s, SURF_DARK, (px, py, pw, ph), border_radius=14)
         text(s, T("filters"), (px + 20, py + 16), 17, FG, True)
         for i, k in enumerate(FILTER_KEYS):
             y = py + 54 + i * 46
@@ -545,9 +559,9 @@ class App:
         text(s, T("downloads_summary", count=len(self.store.downloads), free=youtube.format_size(free)), (16, top + 2), 12, DIM)
         top += 24
         if not services.is_online():
-            pygame.draw.rect(s, (30, 30, 30), (0, top, W, 28))
-            self.draw_wifi(W // 2 - 150, top + 19, (204, 204, 204), 0.6, slash=True)
-            text(s, T("offline_banner"), (W // 2 - 132, top + 6), 12, (204, 204, 204))
+            pygame.draw.rect(s, SURF_LOW, (0, top, W, 28))
+            self.draw_wifi(W // 2 - 150, top + 19, SOFT, 0.6, slash=True)
+            text(s, T("offline_banner"), (W // 2 - 132, top + 6), 12, SOFT)
             top += 34
         self.draw_list(self.store.downloads, self.dsel, top, self.download_row,
                        T("downloads_empty"))
@@ -658,7 +672,7 @@ class App:
     def draw_offline(self):
         s = self.screen
         self.draw_header(title=" ")
-        pygame.draw.circle(s, (30, 30, 30), (W // 2, 150), 56)
+        pygame.draw.circle(s, SURF_LOW, (W // 2, 150), 56)
         self.draw_wifi(W // 2, 172, DIM, 2.4, slash=True)
         text(s, T("offline_title"), (W // 2, 222), 20, FG, center=True)
         for i, line in enumerate([T("offline_line1"),
@@ -716,8 +730,8 @@ class App:
                 shown = f"◀  {value}  ▶" if arrows else value
                 f = font(13)
                 w = f.size(shown)[0] + 20
-                pygame.draw.rect(s, (58, 58, 58) if i == self.ssel else SURF, (W - 34 - w, y + 8, w, 28), border_radius=8)
-                text(s, shown, (W - 24 - w, y + 13), 13, (255, 138, 155) if i == 3 else FG)
+                pygame.draw.rect(s, SURF_HI if i == self.ssel else SURF, (W - 34 - w, y + 8, w, 28), border_radius=8)
+                text(s, shown, (W - 24 - w, y + 13), 13, ERR_SOFT if i == 3 else FG)
         if len(rows) > vis:
             track = pygame.Rect(W - 12, 58, 4, vis * 48 - 8)
             pygame.draw.rect(s, SURF, track, border_radius=2)
@@ -1164,7 +1178,7 @@ class App:
                 pygame.draw.rect(s, SURF, (10, y, W - 30, 58), border_radius=10)
                 pygame.draw.rect(s, FG, (10, y, W - 30, 58), 2, border_radius=10)
             if p is None:
-                pygame.draw.rect(s, (58, 58, 58), (18, y + 7, 78, 44), border_radius=8)
+                pygame.draw.rect(s, SURF_HI, (18, y + 7, 78, 44), border_radius=8)
                 text(s, "+", (57, y + 13), 22, FG, True, center=True)
                 text(s, T("new_playlist"), (110, y + 19), 15, FG)
                 continue
@@ -1284,14 +1298,14 @@ class App:
         self.draw_video()
         s = self.screen
         veil = pygame.Surface((W, H), pygame.SRCALPHA)
-        veil.fill((0, 0, 0, 170))
+        veil.fill(VEIL)
         s.blit(veil, (0, 0))
         rows = self.store.playlists + [None]
         vis = min(len(rows), 6)
         first = max(0, min(self.pick_sel - vis + 2, len(rows) - vis))
         pw, ph = 420, 70 + vis * 46
         px, py = (W - pw) // 2, max(30, (H - 36 - ph) // 2)
-        pygame.draw.rect(s, (24, 24, 24), (px, py, pw, ph), border_radius=14)
+        pygame.draw.rect(s, SURF_DARK, (px, py, pw, ph), border_radius=14)
         text(s, T("save_to"), (px + 20, py + 16), 17, FG, True)
         for i, p in enumerate(rows[first:first + vis]):
             idx = first + i
