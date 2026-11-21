@@ -43,8 +43,10 @@ class Archive:
             raise SystemExit(f"{name} has CRLF line endings")
         info = zipfile.ZipInfo(self.prefix + name, date_time=DATE)
         info.compress_type = self.z.compression
-        info.create_system = 3  # Unix: without it unzip (and muOS Archive Manager) ignores the modes below
-        info.external_attr = (0o755 if name.endswith(".sh") else 0o644) << 16
+        # Unix regular file with its mode: unzip ignores modes from a "DOS" archive, and muOS
+        # Archive Manager blocks entries that aren't plainly regular files or folders
+        info.create_system = 3
+        info.external_attr = (0o100755 if name.endswith(".sh") else 0o100644) << 16
         self.z.writestr(info, data)
         self.count += 1
 
@@ -100,8 +102,8 @@ for name, data in payload:
     port.add("pockettube/" + name, data)
 port.close()
 
-# muOS unpacks the archive at the root of the SD card; Archive Manager expects plain STORE zips
-mux = Archive(os.path.join(out_dir, f"PocketTube-v{version}.muxapp"), "mnt/mmc/MUOS/application/PocketTube/", stored=True)
+# muOS Archive Manager unpacks a .muxapp into its applications folder (MUOS/application) and prefers STORE zips
+mux = Archive(os.path.join(out_dir, f"PocketTube-v{version}.muxapp"), "PocketTube/", stored=True)
 for rel in tracked(MUOS):
     mux.add(rel[len(MUOS) + 1:], read(rel))
 mux.add("PocketTube.sh", read(f"{PM}/PocketTube.sh"))
