@@ -18,11 +18,11 @@ from i18n import T, decimal
 VERSION = yt_dlp.version.__version__
 
 QUALITY = {
-    "240p": "133+140/160+140/best[height<=240]",
-    "360p": "134+140/133+140/160+140/best[height<=360]",
-    "480p": "135+140/134+140/133+140/best[height<=480]",
-    "720p": ("136+140/bestvideo[height<=720][fps<=30][vcodec^=avc1]+140"
-             "/bestvideo[height<=720][vcodec^=avc1]+140/135+140/134+140/best[height<=720]"),
+    "240p": "133+ba[ext=m4a]/160+ba[ext=m4a]/best[height<=240]",
+    "360p": "134+ba[ext=m4a]/133+ba[ext=m4a]/160+ba[ext=m4a]/best[height<=360]",
+    "480p": "135+ba[ext=m4a]/134+ba[ext=m4a]/133+ba[ext=m4a]/best[height<=480]",
+    "720p": ("136+ba[ext=m4a]/bestvideo[height<=720][fps<=30][vcodec^=avc1]+ba[ext=m4a]"
+             "/bestvideo[height<=720][vcodec^=avc1]+ba[ext=m4a]/135+ba[ext=m4a]/134+ba[ext=m4a]/best[height<=720]"),
     "audio": "140/bestaudio[ext=m4a]/bestaudio",
 }
 from store import MUSIC_DIR  # noqa: E402

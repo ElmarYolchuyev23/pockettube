@@ -43,6 +43,7 @@ class Archive:
             raise SystemExit(f"{name} has CRLF line endings")
         info = zipfile.ZipInfo(self.prefix + name, date_time=DATE)
         info.compress_type = self.z.compression
+        info.create_system = 3  # Unix: without it unzip (and muOS Archive Manager) ignores the modes below
         info.external_attr = (0o755 if name.endswith(".sh") else 0o644) << 16
         self.z.writestr(info, data)
         self.count += 1

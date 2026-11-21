@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Videos with several audio tracks (YouTube's auto-dubbing) open again: the player asks for the best m4a track, which is the original language, instead of format 140, which such videos don't have.
 - One release for all firmware: `build.py` now makes the KNULLI installer archive, a PortMaster port (muOS, ROCKNIX, ArkOS, AmberELEC and others) and a muOS app (`.muxapp`) from the same source.
 - Runs on firmware other than Batocera / KNULLI: downloads and music stay in the app folder when there is no `/userdata`, DejaVu is looked up in the usual font folders, and screens other than 640×480 get the interface scaled to fit.
 - Related videos work again: they now come from YouTube's watch-page data, since YouTube stopped serving the video's mix playlist to yt-dlp. The old way stays as a fallback.
