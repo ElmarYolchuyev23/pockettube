@@ -17,8 +17,29 @@ APP_NAME = "PocketTube"
 W, H = 640, 480
 FONT = os.path.join(APP_DIR, "assets", "fonts", "Inter-Regular.ttf")
 FONT_BOLD = os.path.join(APP_DIR, "assets", "fonts", "Inter-SemiBold.ttf")
-FALLBACK_FONT = "/usr/share/fonts/dejavu/DejaVuSans.ttf"
-FALLBACK_FONT_BOLD = "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"
+
+
+def _system_font(name):
+    """DejaVu from the firmware, used only if the bundled Inter can't be loaded; firmwares keep it in different places."""
+    for d in ("/usr/share/fonts/dejavu", "/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/TTF", "/usr/share/fonts"):
+        if os.path.exists(os.path.join(d, name)):
+            return os.path.join(d, name)
+    return None  # pygame's own default font
+
+
+FALLBACK_FONT = _system_font("DejaVuSans.ttf")
+FALLBACK_FONT_BOLD = _system_font("DejaVuSans-Bold.ttf") or FALLBACK_FONT
+
+
+def set_mode():
+    """640x480 screens get the window as is; other screens (720x720, 1280x720...) get it scaled to fit."""
+    info = pygame.display.Info()
+    if (info.current_w, info.current_h) in ((W, H), (0, 0), (-1, -1)):
+        return pygame.display.set_mode((W, H))
+    try:
+        return pygame.display.set_mode((W, H), pygame.SCALED | pygame.FULLSCREEN)
+    except pygame.error:
+        return pygame.display.set_mode((W, H))
 
 # Palette, darkest to lightest
 BG = (15, 15, 15)
@@ -173,7 +194,7 @@ class App:
         pygame.init()
         pygame.mouse.set_visible(False)
         pygame.key.set_repeat(350, 90)
-        self.screen = pygame.display.set_mode((W, H))
+        self.screen = set_mode()
         pygame.display.set_caption(APP_NAME)
         self.logo_src = None
         try:
@@ -1077,7 +1098,7 @@ class App:
         finally:
             pygame.display.init()
             pygame.mouse.set_visible(False)
-            self.screen = pygame.display.set_mode((W, H))
+            self.screen = set_mode()
             pygame.event.clear()
             self.sfx.start()
         if failed:

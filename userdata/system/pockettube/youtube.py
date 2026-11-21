@@ -25,7 +25,7 @@ QUALITY = {
              "/bestvideo[height<=720][vcodec^=avc1]+140/135+140/134+140/best[height<=720]"),
     "audio": "140/bestaudio[ext=m4a]/bestaudio",
 }
-MUSIC_DIR = "/userdata/music/youtube"
+from store import MUSIC_DIR  # noqa: E402
 THUMBS = {}
 
 def _live_fmt(h):

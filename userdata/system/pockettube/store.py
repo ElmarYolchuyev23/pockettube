@@ -2,7 +2,10 @@ import json, os, threading, time
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(APP_DIR, "data.json")
-DOWNLOAD_DIRS = ["/userdata/videos/youtube", os.path.join(APP_DIR, "downloads")]
+# Batocera / KNULLI keep media in /userdata; on other firmware everything stays in the app folder
+USERDATA = "/userdata" if os.path.isdir("/userdata/roms") else None
+DOWNLOAD_DIRS = ([USERDATA + "/videos/youtube"] if USERDATA else []) + [os.path.join(APP_DIR, "downloads")]
+MUSIC_DIR = USERDATA + "/music/youtube" if USERDATA else os.path.join(APP_DIR, "music")
 QUALITIES = ["240p", "360p", "480p", "720p"]
 DL_QUALITIES = QUALITIES + ["audio"]
 WATCH_LATER = "wl"
@@ -38,6 +41,8 @@ class Store:
             self.data["settings"]["kb_layout"] = self.data["settings"]["lang"]
         if not any(p.get("id") == WATCH_LATER for p in self.data["playlists"]):
             self.data["playlists"].insert(0, {"id": WATCH_LATER, "name": "", "items": []})
+        if self.data["settings"].get("dl_dir") not in DOWNLOAD_DIRS:
+            self.data["settings"]["dl_dir"] = DOWNLOAD_DIRS[0]
         if self.data["settings"].get("dl_quality") not in DL_QUALITIES:
             self.data["settings"]["dl_quality"] = "360p"
         for d in self.data["downloads"]:

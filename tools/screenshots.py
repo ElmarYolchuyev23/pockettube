@@ -42,6 +42,7 @@ if FONTS:
     main.FALLBACK_FONT = os.path.join(FONTS, "DejaVuSans.ttf")
     main.FALLBACK_FONT_BOLD = os.path.join(FONTS, "DejaVuSans-Bold.ttf")
 main.App.show_splash = lambda self: main.load_backend()
+main.set_mode = lambda: pg.display.set_mode((main.W, main.H))  # the dummy display isn't 640x480; don't scale
 main.time.strftime = lambda fmt, *a: "12:00"
 main.Task = lambda fn, *a: types.SimpleNamespace(done=True, result=None, error=None)
 pg = main.pygame
@@ -78,6 +79,7 @@ app.store.data["downloads"] = [dict(DEMO[2], status="done", progress=1, file="x"
                                dict(DEMO[3], status="done", progress=1, file="x", size=96 * 1024 ** 2, quality="480p"),
                                dict(DEMO[1], status="loading", progress=0.42, file="", size=0, quality="480p")]
 app.store.save = lambda: None
+app.store.settings["dl_dir"] = "/userdata/videos/youtube"  # as on KNULLI, not this PC's temp folder
 
 
 def shot(lang, name):
