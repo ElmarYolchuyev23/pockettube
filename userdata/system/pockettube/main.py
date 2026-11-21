@@ -31,6 +31,28 @@ FALLBACK_FONT = _system_font("DejaVuSans.ttf")
 FALLBACK_FONT_BOLD = _system_font("DejaVuSans-Bold.ttf") or FALLBACK_FONT
 
 
+VIDEO_DRIVERS = ("KMSDRM", "mali", "fbcon", "directfb", "wayland", "x11")
+
+
+def init_display():
+    """Start SDL video. Some firmware builds have no working default driver, so try the usual ones by name;
+    the one that works stays in SDL_VIDEODRIVER, which mpv (--vo=sdl) inherits too."""
+    errors = []
+    for drv in (None,) + VIDEO_DRIVERS:
+        if drv:
+            if os.environ.get("SDL_VIDEODRIVER") == drv:
+                continue
+            os.environ["SDL_VIDEODRIVER"] = drv
+        try:
+            pygame.display.init()
+            print("video driver:", pygame.display.get_driver(), flush=True)
+            return
+        except pygame.error as e:
+            errors.append(f"{drv or os.environ.get('SDL_VIDEODRIVER') or 'default'}: {e}")
+            print("video init failed with", errors[-1], flush=True)
+    raise SystemExit("no working SDL video driver: " + "; ".join(errors))
+
+
 def set_mode():
     """640x480 screens get the window as is; other screens (720x720, 1280x720...) get it scaled to fit."""
     info = pygame.display.Info()
@@ -192,6 +214,8 @@ class App:
     def __init__(self):
         sounds_mod.prepare_env()
         pygame.init()
+        if not pygame.display.get_init():
+            init_display()
         pygame.mouse.set_visible(False)
         pygame.key.set_repeat(350, 90)
         self.screen = set_mode()
@@ -1096,7 +1120,7 @@ class App:
             pos, failed = p.play()
             self.last_end = p.end_reason
         finally:
-            pygame.display.init()
+            init_display()
             pygame.mouse.set_visible(False)
             self.screen = set_mode()
             pygame.event.clear()
