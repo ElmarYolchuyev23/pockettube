@@ -16,6 +16,13 @@ fi
 SETUP_APP "python3" ""
 SET_VAR "system" "foreground_process" "python3"
 
+# SETUP_APP prepends gl4es, whose libEGL hides the Mali one that SDL's only video driver (mali) needs,
+# and preloads muOS's cursor library; PortMaster ports run without either
+LD_LIBRARY_PATH="$(echo "$LD_LIBRARY_PATH" | tr ':' '\n' | grep -v gl4es | paste -sd: -)"
+export LD_LIBRARY_PATH
+unset LD_PRELOAD
+env | grep -E "^(SDL_|LD_)" | grep -v GAMECONTROLLERCONFIG=
+
 # PocketTube runs on PortMaster's Python runtime; muOS ships PortMaster in MUOS/PortMaster,
 # which the launcher finds through XDG_DATA_HOME
 for MUOS_DIR in "$(GET_VAR "device" "storage/rom/mount")/MUOS" /mnt/mmc/MUOS /mnt/sdcard/MUOS; do
