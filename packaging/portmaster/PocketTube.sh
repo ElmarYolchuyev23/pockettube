@@ -41,6 +41,14 @@ if [ ! -f "$controlfolder/libs/${runtime}.squashfs" ]; then
   fi
 
   $ESUDO $controlfolder/harbourmaster --quiet --no-check runtime_check "${runtime}.squashfs"
+  # A PortMaster that hasn't refreshed its runtime list yet reports "Unknown runtime": let it check online
+  [ -f "$controlfolder/libs/${runtime}.squashfs" ] || $ESUDO $controlfolder/harbourmaster --quiet runtime_check "${runtime}.squashfs"
+fi
+
+if [ ! -f "$controlfolder/libs/${runtime}.squashfs" ]; then
+  pm_message "Python 3.11 is not installed: connect to Wi-Fi, open PortMaster and install it from Options > Runtime Manager."
+  sleep 8
+  exit 1
 fi
 
 if [[ "$PM_CAN_MOUNT" != "N" ]]; then
