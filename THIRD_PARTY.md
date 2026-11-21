@@ -14,6 +14,18 @@ mpv, Python, pygame, ffmpeg and the DejaVu fonts come with the console firmware.
 | [DejaVu Fonts](https://dejavu-fonts.github.io) | console firmware (fallback font) | Bitstream Vera / DejaVu (free) |
 | [Inter](https://rsms.me/inter/) 4.1 (Regular, SemiBold) | bundled in the repository, `pockettube/assets/fonts` | SIL Open Font License 1.1 (`assets/fonts/Inter-LICENSE.txt`) |
 
+### PortMaster and muOS packages
+
+These packages run on PortMaster's `python_3.11` runtime instead of the firmware's Python, so they bundle a few more components (`packaging/portmaster/vendor`, licenses in `packaging/portmaster/licenses`):
+
+| Component | Where it comes from | License |
+|---|---|---|
+| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | official release, unpacked into `pockettube/ytdlp_src` at build time | The Unlicense |
+| [pygame](https://www.pygame.org) 2.6.1 for aarch64 / Python 3.11 | Cebion's build from the Angry Drunken Dwarves PortMaster port, against the system SDL2 | LGPL-2.1 |
+| [OpenSSL](https://www.openssl.org) 1.1 (`libssl.so.1.1`, `libcrypto.so.1.1`) | aarch64 build; the runtime needs it and newer firmware only ships OpenSSL 3 | OpenSSL / SSLeay |
+| [libffi](https://sourceware.org/libffi/) 7 | aarch64 build, needed by the runtime | MIT |
+| [certifi](https://github.com/certifi/python-certifi) | CA certificates, used when the firmware has no certificate bundle | MPL-2.0 |
+
 PocketTube's own code is released under the MIT license (see [LICENSE](LICENSE)).
 
 ## Images in screenshots and carousel art

@@ -27,12 +27,24 @@ An unofficial YouTube client for Linux handhelds with EmulationStation. Built an
 
 ## Install
 
-You need a Linux handheld with EmulationStation, Wi‑Fi, and SSH or another way to copy files to the SD card. The installer expects the usual `/userdata` layout with a Ports system.
+Every release has three files built from the same source; pick the one for your firmware. You need Wi‑Fi, and the firmware's `mpv` to play videos.
 
-1. Download `pockettube-vX.Y.zip` from the releases page and copy it to the console, for example to `/userdata/`.
+| Firmware | File | How |
+|---|---|---|
+| KNULLI, Batocera | `pockettube-knulli-vX.Y.zip` | the installer below; uses the firmware's own Python and pygame |
+| Any firmware with PortMaster (muOS, ROCKNIX, ArkOS / dArkOS, AmberELEC, KNULLI…) | `pockettube-portmaster-vX.Y.zip` | copy it to PortMaster's `autoinstall` folder, or unpack it into the Ports folder; then **Ports → PocketTube** |
+| muOS 2601 Jacaranda or newer | `PocketTube-vX.Y.muxapp` | copy it to `/mnt/mmc/ARCHIVE`, install it from **Applications → Archive Manager**, then open **Applications → PocketTube**. Runs on muOS's built-in PortMaster |
+
+The PortMaster and muOS packages include yt-dlp, pygame and the libraries the PortMaster Python runtime needs, and keep downloads in the app's own folder. They don't include deno, so some videos play in 480p instead of 720p.
+
+### KNULLI / Batocera installer
+
+You need SSH or another way to copy files to the SD card. The installer expects the usual `/userdata` layout with a Ports system.
+
+1. Download `pockettube-knulli-vX.Y.zip` from the releases page and copy it to the console, for example to `/userdata/`.
 2. Unpack it and run the installer on the console:
    ```sh
-   cd /userdata && unzip pockettube-v1.0.zip && bash pockettube/install.sh
+   cd /userdata && unzip pockettube-knulli-v1.0.zip && bash pockettube/install.sh
    ```
 3. Open **Ports → PocketTube**.
 
@@ -93,7 +105,7 @@ If you used an earlier version (the `ytclient` folder and `YouTube.sh`), the ins
 python build.py
 ```
 
-writes `dist/pockettube-vX.Y.zip` (the version comes from `APP_VERSION` in `main.py`). `tools/logo.py` regenerates the logo and carousel art; `tools/screenshots.py` regenerates the screenshots with demo data (the optional argument is a folder with DejaVu fonts, used only as a fallback). `tools/perf.py` measures how long each screen takes to draw; run it on the handheld from a copy of the repository to check the interface keeps up with 30 fps.
+writes the three release files to `dist/` (the version comes from `APP_VERSION` in `main.py`): the KNULLI installer archive, the PortMaster port and the muOS app. The last two are assembled from `packaging/` and bundle the latest official yt-dlp, downloaded once into `dist/cache` (`--update-ytdlp` refreshes it). `tools/logo.py` regenerates the logo and carousel art; `tools/screenshots.py` regenerates the screenshots with demo data (the optional argument is a folder with DejaVu fonts, used only as a fallback). `tools/perf.py` measures how long each screen takes to draw; run it on the handheld from a copy of the repository to check the interface keeps up with 30 fps.
 
 The console's mpv is built without Lua, so `player.py` drives mpv over its IPC socket: buttons arrive as `script-message` events (see `player-input.conf`) and the overlay is drawn with `osd-overlay`.
 
@@ -103,7 +115,9 @@ userdata/system/pockettube/  main.py (UI), player.py (player and overlay), youtu
                              sounds.py (menu sounds), i18n.py (English/Russian/Turkish strings), assets/
 userdata/roms/ports/         PocketTube.sh (launcher), PocketTube.sh.keys (buttons → keys), images/
 install.sh                   installer
-build.py                     release archive
+build.py                     release files (KNULLI zip, PortMaster zip, muOS .muxapp)
+packaging/portmaster/        PortMaster launcher, key map, metadata, licenses, bundled pygame and libraries
+packaging/muos/              muOS app launcher, name and help text, icon
 tools/                       logo and screenshot generators, frame-time benchmark
 ```
 
