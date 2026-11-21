@@ -12,6 +12,8 @@
 - Home shows a Watch later row and only the sections that have something in them; on first run it shows a single welcome state.
 - Video screen: the background takes on the thumbnail's colours, and the channel gets a letter avatar.
 - Empty History, Downloads, playlists and search results show an icon and a hint for what to do next.
+- Faster drawing: rendered text and wrapped titles are cached, so a frame takes about a fifth of the time it did in 1.0.
+- `tools/perf.py`: frame-time benchmark to run on the handheld.
 
 ## 1.0
 

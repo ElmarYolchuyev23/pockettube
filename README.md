@@ -11,6 +11,7 @@ An unofficial YouTube client for Linux handhelds with EmulationStation. Built an
 | ![Home](docs/screenshots/en-home.png) | ![Video](docs/screenshots/en-video.png) |
 | ![Search](docs/screenshots/en-results.png) | ![Playlists](docs/screenshots/en-playlists.png) |
 | ![Главная](docs/screenshots/ru-home.png) | ![Настройки](docs/screenshots/ru-settings.png) |
+| ![Ana Sayfa](docs/screenshots/tr-home.png) | ![Video](docs/screenshots/tr-video.png) |
 
 ## Features
 
@@ -92,7 +93,7 @@ If you used an earlier version (the `ytclient` folder and `YouTube.sh`), the ins
 python build.py
 ```
 
-writes `dist/pockettube-vX.Y.zip` (the version comes from `APP_VERSION` in `main.py`). `tools/logo.py` regenerates the logo and carousel art; `tools/screenshots.py <fonts dir>` regenerates the screenshots with demo data.
+writes `dist/pockettube-vX.Y.zip` (the version comes from `APP_VERSION` in `main.py`). `tools/logo.py` regenerates the logo and carousel art; `tools/screenshots.py` regenerates the screenshots with demo data (the optional argument is a folder with DejaVu fonts, used only as a fallback). `tools/perf.py` measures how long each screen takes to draw; run it on the handheld from a copy of the repository to check the interface keeps up with 30 fps.
 
 The console's mpv is built without Lua, so `player.py` drives mpv over its IPC socket: buttons arrive as `script-message` events (see `player-input.conf`) and the overlay is drawn with `osd-overlay`.
 
@@ -103,7 +104,7 @@ userdata/system/pockettube/  main.py (UI), player.py (player and overlay), youtu
 userdata/roms/ports/         PocketTube.sh (launcher), PocketTube.sh.keys (buttons → keys), images/
 install.sh                   installer
 build.py                     release archive
-tools/                       logo and screenshot generators
+tools/                       logo and screenshot generators, frame-time benchmark
 ```
 
 ## License

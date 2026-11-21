@@ -102,7 +102,21 @@ def ellipsize(s, f, max_w):
     return s.rstrip() + "…"
 
 
+# Text is redrawn every frame; measuring and rendering it was most of a frame's cost on the
+# handheld, so finished lines and rendered labels are cached (cleared when they pile up).
+_wrap_cache, _text_cache, CACHE_LIMIT = {}, {}, 1500
+
+
 def wrap(s, f, max_w, max_lines):
+    key = (str(s), id(f), max_w, max_lines)
+    if key not in _wrap_cache:
+        if len(_wrap_cache) > CACHE_LIMIT:
+            _wrap_cache.clear()
+        _wrap_cache[key] = _wrap(s, f, max_w, max_lines)
+    return list(_wrap_cache[key])
+
+
+def _wrap(s, f, max_w, max_lines):
     words, lines, cur = clean(s).replace("\n", " ").split(), [], ""
     for w in words:
         test = (cur + " " + w).strip()
@@ -122,9 +136,14 @@ def wrap(s, f, max_w, max_lines):
 
 
 def text(surf, s, pos, size=14, color=FG, bold=False, max_w=None, center=False, right=False):
-    f = font(size, bold)
-    s = ellipsize(s, f, max_w) if max_w else clean(s)
-    img = f.render(s, True, color)
+    key = (str(s), size, color, bold, max_w)
+    img = _text_cache.get(key)
+    if img is None:
+        f = font(size, bold)
+        img = f.render(ellipsize(s, f, max_w) if max_w else clean(s), True, color)
+        if len(_text_cache) > CACHE_LIMIT:
+            _text_cache.clear()
+        _text_cache[key] = img
     x, y = pos
     if center:
         x -= img.get_width() // 2
