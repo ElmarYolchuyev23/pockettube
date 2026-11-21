@@ -78,6 +78,7 @@ app.store.save = lambda: None
 
 
 def shot(lang, name):
+    app.anim_now = set()  # start animations from rest so each screenshot shows the settled state
     app.draw()
     pg.image.save(app.screen, os.path.join(OUT, f"{lang}-{name}.png"))
 

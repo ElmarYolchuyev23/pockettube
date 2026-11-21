@@ -43,6 +43,7 @@ ERR_SOFT = (255, 138, 155)
 BADGE = (0, 0, 0, 175)  # translucent duration badge
 FOCUS_W = 2  # width of the accent focus ring
 CARD_ZOOM = 1.04  # focused Home card scale
+AMBIENT = (85, 85, 85)  # brightness of the blurred thumbnail behind the video screen (multiplied, 255 = full)
 ERR_BG, ERR_FG = (58, 20, 24), (255, 218, 223)
 TINTS = [(59, 47, 74), (47, 74, 68), (74, 59, 47), (47, 61, 74), (74, 47, 59), (59, 74, 47)]
 
@@ -162,6 +163,7 @@ class App:
             pass
         self.logo_cache = {}
         self.masks, self.round_cache, self.badges = {}, {}, {}
+        self.ambient_bg = (None, None)
         self.toasts = []
         self.anims, self.anim_prev, self.anim_now, self.focus_ring, self.list_off = {}, set(), set(), None, 0
         self.store = store_mod.Store()
@@ -175,7 +177,7 @@ class App:
 
         self.view = "home" if services.is_online() else "offline"
         self.back_view = "home"
-        self.home_row, self.home_col = 0, 0
+        self.home_row, self.home_col, self.home_chip_n = 0, 0, 6
         self.query, self.lang = "", self.store.settings.get("kb_layout", "en")
         self.kx, self.ky = 0, 1
         self.sugg, self.sugg_i, self.sugg_for, self.sugg_due, self.sugg_task = [], 0, "", 0, None
@@ -321,12 +323,23 @@ class App:
             total = sum(widths) + 4 * (len(TABS) - 1) + 2 * (26 + 5)
             x = 54 + max(0, (468 - total) // 2)
             x += self.draw_key("L1", x, 14, small=True) + 5
-            for name, label, w in zip(TABS, labels, widths):
-                on = name == active
-                pygame.draw.rect(s, FG if on else SURF, (x, 11, w, 26), border_radius=8)
-                text(s, label, (x + w // 2, 16), 12, INK if on else FG, on, center=True)
+            spots = []
+            for w in widths:
+                spots.append((x, w))
                 x += w + 4
             self.draw_key("R1", x, 14, small=True)
+            # one pill glides to the active tab; labels are light text, and dark only inside the pill,
+            # so every in-between frame reads correctly
+            for label, (tx, w) in zip(labels, spots):
+                text(s, label, (tx + w // 2, 16), 12, DIM, center=True)
+            if active in TABS:
+                px, pw = self.anim("tab_pill", spots[TABS.index(active)], 0.4)
+                pill = pygame.Rect(round(px), 11, round(pw), 26)
+                pygame.draw.rect(s, FG, pill, border_radius=13)
+                s.set_clip(pill)
+                for name, label, (tx, w) in zip(TABS, labels, spots):
+                    text(s, label, (tx + w // 2, 16), 12, INK, name == active, center=True)
+                s.set_clip(None)
         self.draw_status(W - 16, 24)
 
     def draw_key(self, label, x, y, small=False, light=True):
@@ -435,10 +448,38 @@ class App:
         elif status:
             text(s, status, (156, cy + 17), 12, DIM)
 
-    def draw_list(self, items, sel, top_y, row_fn, empty_text):
+    def draw_icon(self, kind, cx, cy, color):
+        """Simple line icons for empty states, about 28 px."""
         s = self.screen
+        if kind == "search":
+            pygame.draw.circle(s, color, (cx - 3, cy - 3), 10, 3)
+            pygame.draw.line(s, color, (cx + 5, cy + 5), (cx + 12, cy + 12), 4)
+        elif kind == "history":
+            pygame.draw.circle(s, color, (cx, cy), 13, 3)
+            pygame.draw.line(s, color, (cx, cy), (cx, cy - 8), 3)
+            pygame.draw.line(s, color, (cx, cy), (cx + 6, cy + 4), 3)
+        elif kind == "download":
+            pygame.draw.line(s, color, (cx, cy - 13), (cx, cy + 3), 3)
+            pygame.draw.polygon(s, color, [(cx - 7, cy - 2), (cx + 7, cy - 2), (cx, cy + 6)])
+            pygame.draw.line(s, color, (cx - 12, cy + 12), (cx + 12, cy + 12), 3)
+        else:  # list
+            for i in range(3):
+                pygame.draw.circle(s, color, (cx - 10, cy - 8 + i * 8), 2)
+                pygame.draw.line(s, color, (cx - 4, cy - 8 + i * 8), (cx + 12, cy - 8 + i * 8), 3)
+
+    def draw_empty(self, title, hint=None, icon="list", top_y=60):
+        s = self.screen
+        cy = top_y + (H - 36 - top_y) // 2 - 40
+        pygame.draw.circle(s, SURF_LOW, (W // 2, cy), 40)
+        self.draw_icon(icon, W // 2, cy, MUTED)
+        text(s, title, (W // 2, cy + 54), 16, FG, center=True, max_w=W - 60)
+        if hint:
+            for i, line in enumerate(wrap(hint, font(13), W - 120, 2)):
+                text(s, line, (W // 2, cy + 80 + i * 18), 13, DIM, center=True)
+
+    def draw_list(self, items, sel, top_y, row_fn, empty_text, icon="list", hint=None):
         if not items:
-            text(s, empty_text, (W // 2, top_y + 120), 14, DIM, center=True)
+            self.draw_empty(empty_text, hint, icon, top_y)
             return
         per = max(1, (H - 36 - top_y) // 84)
         first = max(0, min(sel - 1, len(items) - per))
@@ -503,16 +544,38 @@ class App:
         self.draw_toasts()
         pygame.display.flip()
 
+    def home_rows(self):
+        """Home sections that have something to focus, top to bottom: [(name, items)]."""
+        wl = self.store.playlist(store_mod.WATCH_LATER) or {}
+        rows = [("cards", self.home_cards()), ("later", (wl.get("items") or [])[:4]),
+                ("chips", self.store.queries[:min(6, self.home_chip_n)])]
+        return [(name, items) for name, items in rows if items]
+
+    def home_focus(self):
+        rows = self.home_rows()
+        if not rows:
+            return None, 0
+        self.home_row = max(0, min(self.home_row, len(rows) - 1))
+        name, items = rows[self.home_row]
+        self.home_col = max(0, min(self.home_col, len(items) - 1))
+        return name, self.home_col
+
     def draw_home(self):
         s = self.screen
         self.draw_header("home")
-        text(s, T("continue_watching"), (16, 60), 15, FG, True)
+        focus = self.home_focus()
         cards = self.home_cards()
-        if not cards:
-            text(s, T("home_empty"), (16, 92), 13, DIM)
+        later = (self.store.playlist(store_mod.WATCH_LATER) or {}).get("items") or []
+        hints = [("A", T("hint_open")), ("Y", T("hint_search")), ("L1 R1", T("hint_sections")), ("SELECT", T("settings")), ("B", T("hint_exit"))]
+        if not (cards or later or self.store.queries):  # first run: one welcoming empty state
+            self.draw_empty(T("home_empty"), T("searches_empty"), "search", 48)
+            self.draw_footer(hints)
+            return
+        if cards:
+            text(s, T("continue_watching"), (16, 60), 15, FG, True)
         for i, v in enumerate(cards):
             x, y = 16 + i * 200, 88
-            on = self.home_row == 0 and self.home_col == i
+            on = focus == ("cards", i)
             # the focused card grows a little; ring targets the final size so it doesn't chase the zoom
             zoom = self.anim(f"zoom:{v['id']}", (CARD_ZOOM if on else 1.0,))[0]
             full = pygame.Rect(0, 0, round(188 * CARD_ZOOM), round(106 * CARD_ZOOM))
@@ -531,15 +594,32 @@ class App:
             for j, line in enumerate(wrap(v["title"], font(12), 188, 2)):
                 text(s, line, (x, y + 112 + j * 15), 12, FG)
             text(s, v.get("channel", ""), (x, y + 144), 11, DIM, max_w=188)
-        text(s, T("recent_searches"), (16, 262), 15, FG, True)
+        top = 248 if cards else 56  # an empty "Continue watching" is hidden when there's other content
+        if later:
+            text(s, T("watch_later"), (16, top + 4), 15, FG, True)
+            for i, v in enumerate(later[:4]):
+                x, y = 16 + i * 150, top + 28
+                if focus == ("later", i):
+                    self.hl((x, y, 136, 77), 6, grow=6)
+                self.draw_thumb(v["id"], x, y, 136, 77, i)
+                live = v.get("live")
+                self.draw_badge("LIVE" if live else youtube.format_duration(v.get("duration")), x + 132, y + 73, red=live)
+                text(s, v.get("title", ""), (x, y + 81), 12, FG, max_w=136)
+            top += 124
+        head = top + (8 if later else 14 if cards else 4)
+        text(s, T("recent_searches"), (16, head), 15, FG, True)
         if not self.store.queries:
-            text(s, T("searches_empty"), (16, 292), 13, DIM)
-        x, y = 16, 290
+            text(s, T("searches_empty"), (16, head + 30), 13, DIM)
+        x, y = 16, head + 24 if later else head + 28
+        self.home_chip_n = 0
         for i, q in enumerate(self.store.queries[:6]):
             w = font(13).size(clean(q))[0] + 46
             if x + w > W - 16:
                 x, y = 16, y + 42
-            on = self.home_row == 1 and self.home_col == i
+            if y + 32 > H - 38:  # no room for another row of chips above the footer
+                break
+            self.home_chip_n = i + 1
+            on = focus == ("chips", i)
             if on:
                 self.hl((x, y, w, 32), 16, grow=8)
             pygame.draw.rect(s, FG if on else SURF, (x, y, w, 32), border_radius=16)
@@ -547,7 +627,7 @@ class App:
             pygame.draw.line(s, INK if on else DIM, (x + 19, y + 16), (x + 19, y + 12), 2)
             text(s, q, (x + 32, y + 8), 13, INK if on else FG)
             x += w + 8
-        self.draw_footer([("A", T("hint_open")), ("Y", T("hint_search")), ("L1 R1", T("hint_sections")), ("SELECT", T("settings")), ("B", T("hint_exit"))])
+        self.draw_footer(hints)
 
     def home_cards(self):
         hist = self.store.history
@@ -627,7 +707,7 @@ class App:
             self.draw_skeleton(100)
         else:
             self.draw_list(self.results, self.sel, 100,
-                           lambda y, v, i, on: self.draw_video_row(y, v, i, on), T("nothing_found"))
+                           lambda y, v, i, on: self.draw_video_row(y, v, i, on), T("nothing_found"), "search", T("nothing_found_hint"))
         self.draw_footer([("A", T("hint_open")), ("X", T("filters")), ("Y", T("hint_new_search")), ("L1 R1", T("hint_sections")), ("B", T("hint_back"))])
         if self.filter_open:
             self.draw_filters()
@@ -655,7 +735,7 @@ class App:
     def draw_history(self):
         self.draw_header("history")
         items = self.store.history
-        self.draw_list(items, self.hsel, 58, self.history_row, T("history_empty"))
+        self.draw_list(items, self.hsel, 58, self.history_row, T("history_empty"), "history", T("home_empty"))
         self.draw_footer([("A", T("hint_open")), ("X", T("hint_remove")), ("L1 R1", T("hint_sections")), ("B", T("hint_back"))])
 
     def history_row(self, y, v, i, on):
@@ -676,7 +756,7 @@ class App:
             text(s, T("offline_banner"), (W // 2 - 132, top + 6), 12, SOFT)
             top += 34
         self.draw_list(self.store.downloads, self.dsel, top, self.download_row,
-                       T("downloads_empty"))
+                       T("downloads_empty"), "download", T("downloads_empty_hint"))
         self.draw_footer([("A", T("hint_watch")), ("X", T("hint_delete_cancel")), ("L1 R1", T("hint_sections")), ("B", T("hint_back"))])
 
     def download_row(self, y, d, i, on):
@@ -691,9 +771,37 @@ class App:
         else:
             self.draw_video_row(y, d, i, on, d.get("error") or T("dl_error"))
 
+    def ambient(self, vid):
+        """The video's thumbnail blurred into a dark colour wash for the background; built once per video."""
+        if self.ambient_bg[0] != vid:
+            img = self.thumbs.get(vid, 320, 180) if vid else None
+            if img is None:
+                return None
+            wash = pygame.transform.smoothscale(pygame.transform.smoothscale(img, (8, 5)), (W, H))
+            wash.fill(AMBIENT, special_flags=pygame.BLEND_MULT)
+            fade = pygame.Surface((W, 200), pygame.SRCALPHA)  # melt into the page background towards the bottom
+            for i in range(200):
+                pygame.draw.line(fade, BG + (int(255 * i / 199),), (0, i), (W, i))
+            wash.blit(fade, (0, H - 236))
+            pygame.draw.rect(wash, BG, (0, H - 36, W, 36))
+            self.ambient_bg = (vid, wash)
+        return self.ambient_bg[1]
+
+    def draw_avatar(self, name, cx, cy, r=14):
+        name = clean(name).strip()
+        tint = TINTS[sum(map(ord, name)) % len(TINTS)]
+        pygame.draw.circle(self.screen, tuple(min(255, c + 30) for c in tint), (cx, cy), r)
+        letter = next((ch for ch in name if ch.isalnum()), "")
+        if letter:
+            img = font(13, True).render(letter.upper(), True, FG)
+            self.screen.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
+
     def draw_video(self):
         s, v = self.screen, self.video
         det = self.details
+        wash = self.ambient(v["id"])
+        if wash:
+            s.blit(wash, (0, 0))
         self.draw_thumb(v["id"], 20, 20, 320, 180, 2)
         if v.get("live") or (det and det.get("live")):
             self.draw_badge("LIVE", 334, 194, red=True)
@@ -720,7 +828,7 @@ class App:
             text(s, line, (360, y), 18, FG)
             y += 24
         y += 6
-        pygame.draw.circle(s, TINTS[5], (374, y + 14), 14)
+        self.draw_avatar(v.get("channel", ""), 374, y + 14)
         text(s, v.get("channel", ""), (396, y + 5), 14, FG, max_w=224)
         y += 38
         if self.details_task and not self.details_task.done:
@@ -1060,20 +1168,21 @@ class App:
         return getattr(self, "key_" + self.view)(key)
 
     def key_home(self, key):
-        cards, chips = self.home_cards(), self.store.queries[:6]
-        if key in (pygame.K_UP, pygame.K_DOWN):
-            self.home_row = 0 if key == pygame.K_UP else 1
-            self.home_col = 0
+        rows = self.home_rows()
+        name, col = self.home_focus()
+        if key in (pygame.K_UP, pygame.K_DOWN) and rows:
+            self.home_row = max(0, min(len(rows) - 1, self.home_row + (-1 if key == pygame.K_UP else 1)))
+            self.home_col = min(col, len(rows[self.home_row][1]) - 1)
         elif key == pygame.K_LEFT:
-            self.home_col = max(0, self.home_col - 1)
-        elif key == pygame.K_RIGHT:
-            limit = len(cards) if self.home_row == 0 else len(chips)
-            self.home_col = min(max(0, limit - 1), self.home_col + 1)
-        elif key == K_A:
-            if self.home_row == 0 and self.home_col < len(cards):
-                self.open_video(cards[self.home_col])
-            elif self.home_row == 1 and self.home_col < len(chips):
-                self.do_search(chips[self.home_col])
+            self.home_col = max(0, col - 1)
+        elif key == pygame.K_RIGHT and rows:
+            self.home_col = min(len(rows[self.home_row][1]) - 1, col + 1)
+        elif key == K_A and rows:
+            item = rows[self.home_row][1][col]
+            if name == "chips":
+                self.do_search(item)
+            else:
+                self.open_video(item)
         elif key == K_Y:
             self.view = "search"
         elif key == K_B:
@@ -1337,7 +1446,8 @@ class App:
         if loading:
             self.draw_skeleton(80)
         else:
-            self.draw_list(pl["items"], self.pisel, 80, lambda y, v, i, on: self.draw_video_row(y, v, i, on), T("playlist_empty"))
+            self.draw_list(pl["items"], self.pisel, 80, lambda y, v, i, on: self.draw_video_row(y, v, i, on), T("playlist_empty"),
+                           "list", None if pl["remote"] else T("playlist_empty_hint"))
         hints = [("A", T("hint_open")), ("START", T("hint_play_all"))]
         hints.append(("Y", T("hint_save_playlist")) if pl["remote"] else ("X", T("hint_remove")))
         hints.append(("B", T("hint_back")))

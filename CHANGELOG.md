@@ -8,6 +8,10 @@
 - One focus style everywhere: a purple ring that glides to the selected item; lists scroll smoothly under it.
 - Thumbnails have anti-aliased rounded corners; duration badges are translucent; the focused Home card grows slightly and its progress bar sits inside the thumbnail.
 - Loading placeholders shimmer.
+- Header: inactive tabs are plain text and the active-tab pill glides on L1/R1.
+- Home shows a Watch later row and only the sections that have something in them; on first run it shows a single welcome state.
+- Video screen: the background takes on the thumbnail's colours, and the channel gets a letter avatar.
+- Empty History, Downloads, playlists and search results show an icon and a hint for what to do next.
 
 ## 1.0
 
