@@ -246,7 +246,7 @@ def sub_tracks(info):
     auto = info.get("automatic_captions") or {}
     orig = (info.get("language") or "").split("-")[0]
     ui = i18n.LANG
-    other = "en" if ui == "ru" else "ru"
+    other = "ru" if ui == "en" else "en"  # second language offered for subtitles
     tracks, seen = [], set()
 
     def add(key, url, name, lang):

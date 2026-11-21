@@ -82,7 +82,7 @@ def shot(lang, name):
     pg.image.save(app.screen, os.path.join(OUT, f"{lang}-{name}.png"))
 
 
-for lang in ["en", "ru"]:
+for lang in ["en", "ru", "tr"]:
     i18n.set_lang(lang)
     app.store.settings["lang"] = lang
     app.toasts = []

@@ -49,7 +49,13 @@ FILTER_KEYS = ["sort", "date", "duration", "type"]
 KB = {
     "en": ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm,.-"],
     "ru": ["1234567890", "йцукенгшщзхъ", "фывапролджэ", "ячсмитьбюё.-"],
+    "tr": ["1234567890", "qwertyuıopğü", "asdfghjklşi", "zxcvbnmöç.-"],  # Turkish Q
 }
+
+
+def next_layout(cur, step=1):
+    order = list(KB)
+    return order[((order.index(cur) if cur in order else 0) + step) % len(order)]
 SPECIAL = ["lang", "space", "erase", "find"]
 
 K_A, K_B, K_X, K_Y = pygame.K_RETURN, pygame.K_ESCAPE, pygame.K_BACKSPACE, pygame.K_SPACE
@@ -953,7 +959,7 @@ class App:
             return
         label = SPECIAL[self.kx]
         if label == "lang":
-            self.lang = "ru" if self.lang == "en" else "en"
+            self.lang = next_layout(self.lang)
         elif label == "space":
             self.query += " "
         elif label == "erase":
@@ -1421,7 +1427,7 @@ class App:
                 i18n.set_lang(st["lang"])
                 self.store.save()
             elif self.ssel == 7:
-                st["kb_layout"] = "ru" if st.get("kb_layout", "en") == "en" else "en"
+                st["kb_layout"] = next_layout(st.get("kb_layout", "en"), step)
                 self.lang = st["kb_layout"]
                 self.store.save()
             elif self.ssel == 5:

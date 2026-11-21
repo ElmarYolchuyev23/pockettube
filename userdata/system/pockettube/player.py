@@ -30,7 +30,7 @@ def fmt_time(sec):
 
 def fmt_speed(x):
     s = f"{x:g}×"
-    return s.replace(".", ",") if i18n.LANG == "ru" else s
+    return s.replace(".", ",") if i18n.LANG in i18n.DECIMAL_COMMA else s
 
 
 class Ass:

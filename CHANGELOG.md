@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Turkish interface and a Turkish Q on-screen keyboard (the keyboard key cycles EN → RU → TR).
 - Interface font is now Inter (bundled in `assets/fonts`); DejaVu Sans stays as a fallback.
 - One focus style everywhere: a purple ring that glides to the selected item; lists scroll smoothly under it.
 

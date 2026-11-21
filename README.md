@@ -2,7 +2,7 @@
 
 # PocketTube
 
-An unofficial YouTube client for Linux handhelds with EmulationStation. Built and tested on the Anbernic RG40XX H (640×480), controlled entirely with the gamepad. The interface is available in English and Russian.
+An unofficial YouTube client for Linux handhelds with EmulationStation. Built and tested on the Anbernic RG40XX H (640×480), controlled entirely with the gamepad. The interface is available in English, Russian and Turkish.
 
 > PocketTube is an unofficial client, not affiliated with or endorsed by YouTube or Google.
 
@@ -15,14 +15,14 @@ An unofficial YouTube client for Linux handhelds with EmulationStation. Built an
 ## Features
 
 - Search with suggestions and filters (sort, upload date, duration, videos / live / playlists)
-- Player with a progress bar, chapters, speed 0.5×–2×, subtitles (including auto-translated English/Russian) and a sleep timer
+- Player with a progress bar, chapters, speed 0.5×–2×, subtitles (including auto-translated into the interface language) and a sleep timer
 - Live streams
 - Watch later, your own playlists, playing a whole playlist
 - Related videos and "Continue watching" from where you stopped
 - Downloads for offline viewing (240p–720p) or audio only (m4a, saved where music players see it)
 - Audio-only playback with the screen turned off
 - yt-dlp updates from the settings, with rollback
-- English and Russian interface, English and Russian (ЙЦУКЕН) on-screen keyboard
+- English, Russian and Turkish interface; English, Russian (ЙЦУКЕН) and Turkish Q on-screen keyboard
 
 ## Install
 
@@ -99,7 +99,7 @@ The console's mpv is built without Lua, so `player.py` drives mpv over its IPC s
 ```
 userdata/system/pockettube/  main.py (UI), player.py (player and overlay), youtube.py (yt-dlp),
                              services.py (thumbnails, downloads, network), store.py (data.json),
-                             sounds.py (menu sounds), i18n.py (English/Russian strings), assets/
+                             sounds.py (menu sounds), i18n.py (English/Russian/Turkish strings), assets/
 userdata/roms/ports/         PocketTube.sh (launcher), PocketTube.sh.keys (buttons → keys), images/
 install.sh                   installer
 build.py                     release archive
