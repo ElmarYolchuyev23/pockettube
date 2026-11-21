@@ -1,0 +1,12 @@
+ytdlp_src/
+ytdlp_src.*/
+bin/
+data.json
+data.json.tmp
+cache/
+downloads/
+*.log
+__pycache__/
+backup-*/
+dist/
+*.v[0-9]
