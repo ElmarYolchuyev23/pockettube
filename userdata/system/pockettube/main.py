@@ -40,6 +40,7 @@ ACC = (124, 92, 255)
 LIVE_RED = (230, 33, 60)
 ERR_RED = (255, 90, 110)
 ERR_SOFT = (255, 138, 155)
+FOCUS_W = 2  # width of the accent focus ring
 ERR_BG, ERR_FG = (58, 20, 24), (255, 218, 223)
 TINTS = [(59, 47, 74), (47, 74, 68), (74, 59, 47), (47, 61, 74), (74, 47, 59), (59, 74, 47)]
 
@@ -153,6 +154,7 @@ class App:
             pass
         self.logo_cache = {}
         self.toasts = []
+        self.anims, self.anim_prev, self.anim_now, self.focus_ring, self.list_off = {}, set(), set(), None, 0
         self.store = store_mod.Store()
         i18n.set_lang(self.store.settings["lang"])
         self.show_splash()
@@ -180,6 +182,49 @@ class App:
         self.pick_sel, self.pick_back = 0, "video"
         self.kb_target, self.saved_query, self.name_back = "search", "", "playlists"
         self.del_confirm = (None, 0)
+
+    # --- motion -------------------------------------------------------------
+
+    def anim(self, key, target, k=0.45):
+        """Ease a tuple of numbers towards target; snaps when the key wasn't drawn last frame."""
+        cur = self.anims.get(key)
+        if cur is None or key not in self.anim_prev or len(cur) != len(target):
+            cur = list(target)
+        else:
+            cur = [t if abs(t - c) < 0.5 else c + (t - c) * k for c, t in zip(cur, target)]
+        self.anims[key] = cur
+        self.anim_now.add(key)
+        return cur
+
+    def hl(self, rect, radius=10, fill=None, grow=0, key=None):
+        """Focus highlight: optional fill under the item now, accent ring on top at the end of the frame."""
+        # animate in content coordinates so the ring stays put while its list scrolls
+        target = pygame.Rect(rect).inflate(grow, grow).move(0, round(self.list_off))
+        x, y, w, h = self.anim("focus:" + (key or self.view), tuple(target))
+        r = pygame.Rect(round(x), round(y - self.list_off), round(w), round(h))
+        if fill:
+            pygame.draw.rect(self.screen, fill, r.inflate(-grow, -grow), border_radius=radius)
+        self.focus_ring = (r, radius + grow // 2, self.screen.get_clip())
+
+    def scroller(self, key, first, count, per, row_h, top_y, bar=True):
+        """Smoothly scrolled list window: returns (offset, visible indexes, clip) and draws the scrollbar.
+        Clips drawing to the list until end_list()."""
+        off = self.anim("scroll:" + key, (first * row_h,))[0]
+        start = int(off // row_h)
+        end = min(count, start + per + (1 if off != start * row_h else 0))
+        if bar and count > per:
+            track = pygame.Rect(W - 12, top_y + 4, 4, per * row_h - 8)
+            pygame.draw.rect(self.screen, SURF, track, border_radius=2)
+            hgt = max(20, track.h * per // count)
+            pos = track.y + int((track.h - hgt) * off / ((count - per) * row_h))
+            pygame.draw.rect(self.screen, DIM, (track.x, pos, 4, hgt), border_radius=2)
+        self.list_off = off
+        self.screen.set_clip(pygame.Rect(0, top_y - 3, W, per * row_h + 3))
+        return off, range(start, end)
+
+    def end_list(self):
+        self.list_off = 0
+        self.screen.set_clip(None)
 
     def show_splash(self):
         thread = threading.Thread(target=load_backend, daemon=True)
@@ -312,8 +357,7 @@ class App:
     def draw_video_row(self, y, v, idx, selected, status=None, progress=None):
         s = self.screen
         if selected:
-            pygame.draw.rect(s, SURF, (10, y, W - 30, 82), border_radius=10)
-            pygame.draw.rect(s, FG, (10, y, W - 30, 82), 2, border_radius=10)
+            self.hl((10, y, W - 30, 82), 10, fill=SURF)
         self.draw_thumb(v["id"], 16, y + 5, 128, 72, idx)
         live = v.get("live")
         if v.get("kind") == "playlist":
@@ -339,14 +383,10 @@ class App:
             return
         per = max(1, (H - 36 - top_y) // 84)
         first = max(0, min(sel - 1, len(items) - per))
-        for i, item in enumerate(items[first:first + per]):
-            row_fn(top_y + i * 84, item, first + i, first + i == sel)
-        if len(items) > per:
-            track = pygame.Rect(W - 12, top_y + 4, 4, per * 84 - 8)
-            pygame.draw.rect(s, SURF, track, border_radius=2)
-            hgt = max(20, track.h * per // len(items))
-            pos = track.y + (track.h - hgt) * first // max(1, len(items) - per)
-            pygame.draw.rect(s, DIM, (track.x, pos, 4, hgt), border_radius=2)
+        off, rows = self.scroller(self.view, first, len(items), per, 84, top_y)
+        for i in rows:
+            row_fn(top_y + i * 84 - round(off), items[i], i, i == sel)
+        self.end_list()
 
     def draw_skeleton(self, top_y):
         s = self.screen
@@ -357,12 +397,12 @@ class App:
             pygame.draw.rect(s, LINE, (156, y + 32, int(4.4 * b), 14), border_radius=7)
             pygame.draw.rect(s, SKEL, (156, y + 54, 130, 10), border_radius=5)
 
-    def draw_button(self, label, key, x, y, w, focused, primary=None):
+    def draw_button(self, label, key, x, y, w, focused, primary=None, focus_key=None):
         s = self.screen
         primary = focused if primary is None else primary
         r = pygame.Rect(x, y, w, 42)
         if focused:
-            pygame.draw.rect(s, ACC, r.inflate(10, 10), 3, border_radius=26)
+            self.hl(r, 21, grow=10, key=focus_key)
         pygame.draw.rect(s, FG if primary else SURF, r, border_radius=21)
         kx = x + 14
         pygame.draw.circle(s, INK if primary else FG, (kx + 10, y + 21), 10)
@@ -394,8 +434,14 @@ class App:
         self.toasts.append((msg, kind, time.time() + 3.5))
 
     def draw(self):
+        self.anim_prev, self.anim_now, self.focus_ring, self.list_off = self.anim_now, set(), None, 0
         self.screen.fill(BG)
         getattr(self, "draw_" + self.view)()
+        if self.focus_ring:
+            r, radius, clip = self.focus_ring
+            self.screen.set_clip(clip)
+            pygame.draw.rect(self.screen, ACC, r, FOCUS_W, border_radius=radius)
+            self.screen.set_clip(None)
         self.draw_toasts()
         pygame.display.flip()
 
@@ -409,7 +455,7 @@ class App:
         for i, v in enumerate(cards):
             x, y = 16 + i * 200, 88
             if self.home_row == 0 and self.home_col == i:
-                pygame.draw.rect(s, FG, (x - 5, y - 5, 198, 116), 3, border_radius=11)
+                self.hl((x, y, 188, 106), 8, grow=10)
             self.draw_thumb(v["id"], x, y, 188, 106, i)
             dur = v.get("duration") or 0
             pygame.draw.rect(s, TRACK, (x, y + 103, 188, 3))
@@ -429,6 +475,8 @@ class App:
             if x + w > W - 16:
                 x, y = 16, y + 42
             on = self.home_row == 1 and self.home_col == i
+            if on:
+                self.hl((x, y, w, 32), 16, grow=8)
             pygame.draw.rect(s, FG if on else SURF, (x, y, w, 32), border_radius=16)
             pygame.draw.circle(s, INK if on else DIM, (x + 19, y + 16), 6, 2)
             pygame.draw.line(s, INK if on else DIM, (x + 19, y + 16), (x + 19, y + 12), 2)
@@ -465,7 +513,7 @@ class App:
             y = 102 + i * 26
             on = self.ky == -1 and self.sugg_i == i
             if on:
-                pygame.draw.rect(s, SURF, (12, y - 2, W - 24, 24), border_radius=6)
+                self.hl((12, y - 2, W - 24, 24), 6, fill=SURF)
             pygame.draw.circle(s, DIM, (26, y + 10), 5, 2)
             text(s, sg, (40, y + 2), 13, FG if on else SOFT, max_w=W - 60)
         rows = KB[self.lang]
@@ -477,9 +525,9 @@ class App:
             for x, ch in enumerate(row):
                 r = pygame.Rect(x0 + x * (kw + gap), top + y * (kh + gap), kw, kh)
                 on = (x, y) == (self.kx, self.ky)
-                pygame.draw.rect(s, FG if on else SURF, r, border_radius=8)
                 if on:
-                    pygame.draw.rect(s, ACC, r.inflate(4, 4), 3, border_radius=10)
+                    self.hl(r, 8, grow=6)
+                pygame.draw.rect(s, FG if on else SURF, r, border_radius=8)
                 text(s, ch, r.center[:1] + (r.y + 10,), 16, INK if on else FG, center=True)
         y = len(rows)
         sw = (W - 32 - 3 * gap) // 4
@@ -488,9 +536,9 @@ class App:
             r = pygame.Rect(16 + x * (sw + gap), top + y * (kh + gap), sw, kh)
             on = (x, y) == (self.kx, self.ky)
             find = kid == "find"
-            pygame.draw.rect(s, FG if on else (ACC if find else SURF), r, border_radius=8)
             if on:
-                pygame.draw.rect(s, ACC, r.inflate(4, 4), 3, border_radius=10)
+                self.hl(r, 8, grow=6)
+            pygame.draw.rect(s, FG if on else (ACC if find else SURF), r, border_radius=8)
             text(s, label, (r.centerx, r.y + 12), 13, INK if on else FG, find, center=True)
         self.draw_footer([("A", T("hint_enter")), ("X", T("hint_erase")), ("Y", T("hint_space")),
                           ("START", T("key_save") if naming else T("hint_find")), ("B", T("hint_back"))])
@@ -532,8 +580,7 @@ class App:
             y = py + 54 + i * 46
             on = i == self.fsel
             if on:
-                pygame.draw.rect(s, SURF, (px + 10, y, pw - 20, 40), border_radius=8)
-                pygame.draw.rect(s, FG, (px + 10, y, pw - 20, 40), 2, border_radius=8)
+                self.hl((px + 10, y, pw - 20, 40), 8, fill=SURF, key="filters")
             text(s, T("f_" + k), (px + 24, y + 11), 14, FG)
             val = self.filters.get(k, youtube.FILTERS[k][0][0])
             shown = f"◀  {T('fv_' + k + '_' + val)}  ▶"
@@ -634,9 +681,7 @@ class App:
         bfocus = self.vfocus == "buttons"
         for i, (label, key) in enumerate(labels):
             by = 278 + i * 52
-            self.draw_button(label, key, 360, by, 260, bfocus and self.vbtn == i, primary=(i == 0))
-            if bfocus and self.vbtn == i and i > 0:
-                pygame.draw.rect(s, ACC, (355, by - 5, 270, 52), 3, border_radius=26)
+            self.draw_button(label, key, 360, by, 260, bfocus and self.vbtn == i, primary=(i == 0), focus_key="video")
         self.draw_related()
         hints = [("A", T("hint_select"))]
         if not live:
@@ -656,18 +701,19 @@ class App:
             text(s, T("related_none"), (20, 272), 12, DIM)
             return
         first = max(0, min(self.rsel - 1, len(self.related) - 3))
-        for i, r in enumerate(self.related[first:first + 3]):
-            idx = first + i
-            y = 266 + i * 58
+        off, rows = self.scroller("related", first, len(self.related), 3, 58, 266, bar=False)
+        for idx in rows:
+            r = self.related[idx]
+            y = 266 + idx * 58 - round(off)
             on = self.vfocus == "related" and idx == self.rsel
             if on:
-                pygame.draw.rect(s, SURF, (14, y - 3, 330, 58), border_radius=8)
-                pygame.draw.rect(s, FG, (14, y - 3, 330, 58), 2, border_radius=8)
+                self.hl((14, y - 3, 330, 58), 8, fill=SURF, key="video")
             self.draw_thumb(r["id"], 20, y, 92, 52, idx)
             self.draw_badge(youtube.format_duration(r.get("duration")) if r.get("duration") else "LIVE", 110, y + 50, red=not r.get("duration"))
             for j, line in enumerate(wrap(r.get("title", ""), font(12), 216, 2)):
                 text(s, line, (120, y + 2 + j * 15), 12, FG)
             text(s, r.get("channel", ""), (120, y + 34), 11, DIM, max_w=216)
+        self.end_list()
 
     def draw_offline(self):
         s = self.screen
@@ -681,8 +727,6 @@ class App:
         busy = self.retry_task and not self.retry_task.done
         self.draw_button(T("checking") if busy else T("retry"), "A", 110, 320, 200, self.obtn == 0, primary=True)
         self.draw_button(T("tab_downloads"), "Y", 330, 320, 200, self.obtn == 1, primary=False)
-        if self.obtn == 1:
-            pygame.draw.rect(s, ACC, (325, 315, 210, 52), 3, border_radius=26)
         self.draw_footer([("A", T("hint_select")), ("Y", T("tab_downloads")), ("B", T("hint_exit"))])
 
     def settings_rows(self):
@@ -716,13 +760,12 @@ class App:
         rows = self.settings_rows()
         vis = 8
         first = max(0, min(self.ssel - vis + 2, len(rows) - vis))
-        for i, (label, hint, value) in enumerate(rows):
-            if not first <= i < first + vis:
-                continue
-            y = 55 + (i - first) * 48
+        off, visible = self.scroller("settings", first, len(rows), vis, 48, 55)
+        for i in visible:
+            label, hint, value = rows[i]
+            y = 55 + i * 48 - round(off)
             if i == self.ssel:
-                pygame.draw.rect(s, SURF, (20, y, W - 40, 44), border_radius=10)
-                pygame.draw.rect(s, FG, (20, y, W - 40, 44), 2, border_radius=10)
+                self.hl((20, y, W - 40, 44), 10, fill=SURF)
             text(s, label, (34, y + 4), 15, FG)
             text(s, hint, (34, y + 24), 12, DIM, max_w=360)
             if value:
@@ -732,12 +775,7 @@ class App:
                 w = f.size(shown)[0] + 20
                 pygame.draw.rect(s, SURF_HI if i == self.ssel else SURF, (W - 34 - w, y + 8, w, 28), border_radius=8)
                 text(s, shown, (W - 24 - w, y + 13), 13, ERR_SOFT if i == 3 else FG)
-        if len(rows) > vis:
-            track = pygame.Rect(W - 12, 58, 4, vis * 48 - 8)
-            pygame.draw.rect(s, SURF, track, border_radius=2)
-            hgt = max(20, track.h * vis // len(rows))
-            pos = track.y + (track.h - hgt) * first // max(1, len(rows) - vis)
-            pygame.draw.rect(s, DIM, (track.x, pos, 4, hgt), border_radius=2)
+        self.end_list()
         self.draw_footer([("◀▶", T("hint_change")), ("A", T("hint_select")), ("B", T("hint_back"))])
 
     def switch_tab(self, step):
@@ -1170,13 +1208,12 @@ class App:
         self.lsel = max(0, min(self.lsel, len(rows) - 1))
         per = (H - 36 - 58) // 64
         first = max(0, min(self.lsel - per + 2, len(rows) - per))
-        for i, p in enumerate(rows[first:first + per]):
-            idx = first + i
-            y = 58 + i * 64
-            on = idx == self.lsel
-            if on:
-                pygame.draw.rect(s, SURF, (10, y, W - 30, 58), border_radius=10)
-                pygame.draw.rect(s, FG, (10, y, W - 30, 58), 2, border_radius=10)
+        off, visible = self.scroller("playlists", first, len(rows), per, 64, 58)
+        for idx in visible:
+            p = rows[idx]
+            y = 58 + idx * 64 - round(off)
+            if idx == self.lsel:
+                self.hl((10, y, W - 30, 58), 10, fill=SURF)
             if p is None:
                 pygame.draw.rect(s, SURF_HI, (18, y + 7, 78, 44), border_radius=8)
                 text(s, "+", (57, y + 13), 22, FG, True, center=True)
@@ -1190,12 +1227,7 @@ class App:
             self.draw_badge(str(len(items)), 92, y + 47)
             text(s, self.playlist_name(p), (110, y + 10), 15, FG, max_w=W - 150)
             text(s, self.n_videos(len(items)), (110, y + 32), 12, DIM)
-        if len(rows) > per:
-            track = pygame.Rect(W - 12, 62, 4, per * 64 - 8)
-            pygame.draw.rect(s, SURF, track, border_radius=2)
-            hgt = max(20, track.h * per // len(rows))
-            pos = track.y + (track.h - hgt) * first // max(1, len(rows) - per)
-            pygame.draw.rect(s, DIM, (track.x, pos, 4, hgt), border_radius=2)
+        self.end_list()
         self.draw_footer([("A", T("hint_open")), ("X", T("hint_delete")), ("L1 R1", T("hint_sections")), ("B", T("hint_back"))])
 
     def key_playlists(self, key):
@@ -1307,13 +1339,14 @@ class App:
         px, py = (W - pw) // 2, max(30, (H - 36 - ph) // 2)
         pygame.draw.rect(s, SURF_DARK, (px, py, pw, ph), border_radius=14)
         text(s, T("save_to"), (px + 20, py + 16), 17, FG, True)
-        for i, p in enumerate(rows[first:first + vis]):
-            idx = first + i
-            y = py + 54 + i * 46
+        off, visible = self.scroller("pick", first, len(rows), vis, 46, py + 54, bar=False)
+        for idx in visible:
+            p = rows[idx]
+            y = py + 54 + idx * 46 - round(off)
             on = idx == self.pick_sel
             if on:
-                pygame.draw.rect(s, FG, (px + 10, y, pw - 20, 40), border_radius=8)
-            col = INK if on else FG
+                self.hl((px + 10, y, pw - 20, 40), 8, fill=SURF, key="pick")
+            col = FG
             if p is None:
                 text(s, "+  " + T("new_playlist"), (px + 24, y + 11), 14, col)
                 continue
@@ -1322,7 +1355,8 @@ class App:
             if self.store.in_playlist(p["id"], self.video["id"]):
                 pygame.draw.rect(s, ACC, box.inflate(-6, -6), border_radius=2)
             text(s, self.playlist_name(p), (px + 54, y + 11), 14, col, max_w=pw - 120)
-            text(s, str(len(p["items"])), (px + pw - 24, y + 11), 13, INK if on else DIM, right=True)
+            text(s, str(len(p["items"])), (px + pw - 24, y + 11), 13, FG if on else DIM, right=True)
+        self.end_list()
         self.draw_footer([("A", T("hint_toggle")), ("B", T("hint_done"))])
 
     def key_pick(self, key):

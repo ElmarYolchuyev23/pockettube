@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Interface font is now Inter (bundled in `assets/fonts`); DejaVu Sans stays as a fallback.
+- One focus style everywhere: a purple ring that glides to the selected item; lists scroll smoothly under it.
 
 ## 1.0
 
