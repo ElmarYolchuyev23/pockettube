@@ -11,7 +11,7 @@ import store as store_mod
 youtube = None
 load_error = None
 
-APP_VERSION = "1.0"
+APP_VERSION = "1.1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_NAME = "PocketTube"
 W, H = 640, 480

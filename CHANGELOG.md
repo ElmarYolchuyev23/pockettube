@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.1
 
+- muOS app (`PocketTube-v1.1.muxapp`, install from Applications → Archive Manager) with its own list icon and grid image; tested on muOS 2606 (RG40XX-H).
+- The PortMaster launcher asks PortMaster to fetch the Python 3.11 runtime online when its runtime list is out of date, and shows a message instead of quitting silently if the runtime is still missing.
+- If SDL's default video driver doesn't start, the app tries the other common drivers and logs each error.
 - Videos with several audio tracks (YouTube's auto-dubbing) open again: the player asks for the best m4a track, which is the original language, instead of format 140, which such videos don't have.
 - One release for all firmware: `build.py` now makes the KNULLI installer archive, a PortMaster port (muOS, ROCKNIX, ArkOS, AmberELEC and others) and a muOS app (`.muxapp`) from the same source.
 - Runs on firmware other than Batocera / KNULLI: downloads and music stay in the app folder when there is no `/userdata`, DejaVu is looked up in the usual font folders, and screens other than 640×480 get the interface scaled to fit.

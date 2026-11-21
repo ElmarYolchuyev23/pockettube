@@ -44,7 +44,7 @@ You need SSH or another way to copy files to the SD card. The installer expects 
 1. Download `pockettube-knulli-vX.Y.zip` from the releases page and copy it to the console, for example to `/userdata/`.
 2. Unpack it and run the installer on the console:
    ```sh
-   cd /userdata && unzip pockettube-knulli-v1.0.zip && bash pockettube/install.sh
+   cd /userdata && unzip pockettube-knulli-v1.1.zip && bash pockettube/install.sh
    ```
 3. Open **Ports → PocketTube**.
 
