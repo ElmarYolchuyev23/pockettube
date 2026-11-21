@@ -40,7 +40,9 @@ ACC = (124, 92, 255)
 LIVE_RED = (230, 33, 60)
 ERR_RED = (255, 90, 110)
 ERR_SOFT = (255, 138, 155)
+BADGE = (0, 0, 0, 175)  # translucent duration badge
 FOCUS_W = 2  # width of the accent focus ring
+CARD_ZOOM = 1.04  # focused Home card scale
 ERR_BG, ERR_FG = (58, 20, 24), (255, 218, 223)
 TINTS = [(59, 47, 74), (47, 74, 68), (74, 59, 47), (47, 61, 74), (74, 47, 59), (59, 74, 47)]
 
@@ -159,6 +161,7 @@ class App:
         except (pygame.error, FileNotFoundError):
             pass
         self.logo_cache = {}
+        self.masks, self.round_cache, self.badges = {}, {}, {}
         self.toasts = []
         self.anims, self.anim_prev, self.anim_now, self.focus_ring, self.list_off = {}, set(), set(), None, 0
         self.store = store_mod.Store()
@@ -203,13 +206,14 @@ class App:
         return cur
 
     def hl(self, rect, radius=10, fill=None, grow=0, key=None):
-        """Focus highlight: optional fill under the item now, accent ring on top at the end of the frame."""
+        """Focus highlight: optional fill under the item now, accent ring on top at the end of the frame.
+        Only the ring glides; the fill stays on the item so it never covers rows already drawn."""
+        if fill:
+            pygame.draw.rect(self.screen, fill, rect, border_radius=radius)
         # animate in content coordinates so the ring stays put while its list scrolls
         target = pygame.Rect(rect).inflate(grow, grow).move(0, round(self.list_off))
         x, y, w, h = self.anim("focus:" + (key or self.view), tuple(target))
         r = pygame.Rect(round(x), round(y - self.list_off), round(w), round(h))
-        if fill:
-            pygame.draw.rect(self.screen, fill, r.inflate(-grow, -grow), border_radius=radius)
         self.focus_ring = (r, radius + grow // 2, self.screen.get_clip())
 
     def scroller(self, key, first, count, per, row_h, top_y, bar=True):
@@ -346,19 +350,68 @@ class App:
             text(s, l, (x + kw + 6, H - 27), 12, DIM)
             x += w + 16
 
-    def draw_thumb(self, vid, x, y, w, h, idx=0):
-        img = self.thumbs.get(vid, w, h) if vid else None
+    def round_mask(self, w, h, r):
+        """White mask with anti-aliased rounded corners (drawn at 4x, scaled down); cached per size."""
+        key = (w, h, r)
+        if key not in self.masks:
+            big = pygame.Surface((w * 4, h * 4), pygame.SRCALPHA)
+            big.fill((255, 255, 255, 0))
+            pygame.draw.rect(big, (255, 255, 255, 255), big.get_rect(), border_radius=r * 4)
+            self.masks[key] = pygame.transform.smoothscale(big, (w, h))
+        return self.masks[key]
+
+    def rounded(self, surf, r, cache=None, key=None):
+        if cache is not None and key in cache:
+            return cache[key]
+        out = surf.convert_alpha()
+        out.blit(self.round_mask(*out.get_size(), r), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        if cache is not None:
+            cache[key] = out
+        return out
+
+    def draw_thumb(self, vid, x, y, w, h, idx=0, src=None):
+        """Thumbnail with rounded corners. src: size to load from disk when (w, h) is an animated in-between."""
+        r = 10 if w >= 300 else 8 if w >= 120 else 6
+        key = (vid, w, h)
+        img = self.round_cache.get(key)
+        if img is None and vid:
+            base = self.thumbs.get(vid, *(src or (w, h)))
+            if base:
+                if base.get_size() != (w, h):
+                    base = pygame.transform.smoothscale(base, (w, h))
+                if len(self.round_cache) > 300:
+                    self.round_cache.clear()
+                img = self.rounded(base, r, self.round_cache, key)
         if img:
             self.screen.blit(img, (x, y))
         else:
-            pygame.draw.rect(self.screen, TINTS[idx % len(TINTS)], (x, y, w, h), border_radius=8)
+            pygame.draw.rect(self.screen, TINTS[idx % len(TINTS)], (x, y, w, h), border_radius=r)
 
     def draw_badge(self, label, right, bottom, red=False):
-        f = font(11, True)
-        img = f.render(label, True, FG)
-        r = pygame.Rect(right - img.get_width() - 8, bottom - 17, img.get_width() + 8, 16)
-        pygame.draw.rect(self.screen, LIVE_RED if red else (0, 0, 0), r, border_radius=4)
-        self.screen.blit(img, (r.x + 4, r.y + 1))
+        """Duration / LIVE label over a thumbnail's corner: translucent black pill."""
+        img = font(11, True).render(clean(label), True, FG)
+        r = pygame.Rect(right - img.get_width() - 10, bottom - 17, img.get_width() + 10, 17)
+        key = (r.w, red)
+        if key not in self.badges:
+            bg = pygame.Surface(r.size, pygame.SRCALPHA)
+            pygame.draw.rect(bg, LIVE_RED + (255,) if red else BADGE, bg.get_rect(), border_radius=5)
+            self.badges[key] = bg
+        self.screen.blit(self.badges[key], r)
+        self.screen.blit(img, (r.x + 5, r.y + (r.h - img.get_height()) // 2))
+
+    def draw_shimmer(self, shapes):
+        """Loading placeholders [(color, rect, radius)] with a soft light band sweeping across them."""
+        s = self.screen
+        for color, rect, radius in shapes:
+            pygame.draw.rect(s, color, rect, border_radius=radius)
+        bx = int(time.time() % 1.6 / 1.6 * (W + 240)) - 120
+        old, lift = s.get_clip(), 0
+        for half in (70, 30):  # two nested bands make a soft-edged highlight
+            lift += 7
+            s.set_clip(pygame.Rect(bx - half, 0, half * 2, H).clip(old))
+            for color, rect, radius in shapes:
+                pygame.draw.rect(s, tuple(min(255, c + lift) for c in color), rect, border_radius=radius)
+        s.set_clip(old)
 
     def draw_video_row(self, y, v, idx, selected, status=None, progress=None):
         s = self.screen
@@ -395,13 +448,12 @@ class App:
         self.end_list()
 
     def draw_skeleton(self, top_y):
-        s = self.screen
+        shapes = []
         for i, (a, b) in enumerate([(88, 54), (76, 62), (92, 40), (70, 58)]):
             y = top_y + i * 84
-            pygame.draw.rect(s, LINE, (16, y + 5, 128, 72), border_radius=8)
-            pygame.draw.rect(s, SURF, (156, y + 10, int(4.4 * a), 14), border_radius=7)
-            pygame.draw.rect(s, LINE, (156, y + 32, int(4.4 * b), 14), border_radius=7)
-            pygame.draw.rect(s, SKEL, (156, y + 54, 130, 10), border_radius=5)
+            shapes += [(LINE, (16, y + 5, 128, 72), 8), (SURF, (156, y + 10, int(4.4 * a), 14), 7),
+                       (LINE, (156, y + 32, int(4.4 * b), 14), 7), (SKEL, (156, y + 54, 130, 10), 5)]
+        self.draw_shimmer(shapes)
 
     def draw_button(self, label, key, x, y, w, focused, primary=None, focus_key=None):
         s = self.screen
@@ -460,15 +512,22 @@ class App:
             text(s, T("home_empty"), (16, 92), 13, DIM)
         for i, v in enumerate(cards):
             x, y = 16 + i * 200, 88
-            if self.home_row == 0 and self.home_col == i:
-                self.hl((x, y, 188, 106), 8, grow=10)
-            self.draw_thumb(v["id"], x, y, 188, 106, i)
+            on = self.home_row == 0 and self.home_col == i
+            # the focused card grows a little; ring targets the final size so it doesn't chase the zoom
+            zoom = self.anim(f"zoom:{v['id']}", (CARD_ZOOM if on else 1.0,))[0]
+            full = pygame.Rect(0, 0, round(188 * CARD_ZOOM), round(106 * CARD_ZOOM))
+            card = pygame.Rect(0, 0, round(188 * zoom), round(106 * zoom))
+            full.center = card.center = (x + 94, y + 53)
+            if on:
+                self.hl(full, 8, grow=6)
+            self.draw_thumb(v["id"], card.x, card.y, card.w, card.h, i, src=full.size)
             dur = v.get("duration") or 0
-            pygame.draw.rect(s, TRACK, (x, y + 103, 188, 3))
+            bar = pygame.Rect(card.x + 6, card.bottom - 8, card.w - 12, 4)
+            pygame.draw.rect(s, TRACK, bar, border_radius=2)
             if dur:
-                pygame.draw.rect(s, ACC, (x, y + 103, int(188 * min(1, (v.get("pos") or 0) / dur)), 3))
+                pygame.draw.rect(s, ACC, (bar.x, bar.y, max(4, int(bar.w * min(1, (v.get("pos") or 0) / dur))), 4), border_radius=2)
             live = v.get("live")
-            self.draw_badge("LIVE" if live else youtube.format_duration(dur), x + 183, y + 98, red=live)
+            self.draw_badge("LIVE" if live else youtube.format_duration(dur), card.right - 6, card.bottom - 12, red=live)
             for j, line in enumerate(wrap(v["title"], font(12), 188, 2)):
                 text(s, line, (x, y + 112 + j * 15), 12, FG)
             text(s, v.get("channel", ""), (x, y + 144), 11, DIM, max_w=188)
@@ -665,8 +724,7 @@ class App:
         text(s, v.get("channel", ""), (396, y + 5), 14, FG, max_w=224)
         y += 38
         if self.details_task and not self.details_task.done:
-            for i in range(3):
-                pygame.draw.rect(s, SURF, (360, y + i * 18, 240 - i * 50, 10), border_radius=5)
+            self.draw_shimmer([(SURF, (360, y + i * 18, 240 - i * 50, 10), 5) for i in range(3)])
         elif det:
             for line in wrap(det.get("description") or T("no_description"), font(12), 260, 3):
                 text(s, line, (360, y), 12, DIM)
@@ -699,9 +757,8 @@ class App:
         s = self.screen
         text(s, T("related"), (20, 246), 13, FG, True)
         if self.related_task and not self.related_task.done:
-            for i in range(3):
-                pygame.draw.rect(s, LINE, (20, 268 + i * 58, 92, 52), border_radius=6)
-                pygame.draw.rect(s, SURF, (120, 274 + i * 58, 180 - i * 30, 10), border_radius=5)
+            self.draw_shimmer([shape for i in range(3) for shape in
+                               ((LINE, (20, 268 + i * 58, 92, 52), 6), (SURF, (120, 274 + i * 58, 180 - i * 30, 10), 5))])
             return
         if not self.related:
             text(s, T("related_none"), (20, 272), 12, DIM)
@@ -715,7 +772,7 @@ class App:
             if on:
                 self.hl((14, y - 3, 330, 58), 8, fill=SURF, key="video")
             self.draw_thumb(r["id"], 20, y, 92, 52, idx)
-            self.draw_badge(youtube.format_duration(r.get("duration")) if r.get("duration") else "LIVE", 110, y + 50, red=not r.get("duration"))
+            self.draw_badge(youtube.format_duration(r.get("duration")) if r.get("duration") else "LIVE", 109, y + 49, red=not r.get("duration"))
             for j, line in enumerate(wrap(r.get("title", ""), font(12), 216, 2)):
                 text(s, line, (120, y + 2 + j * 15), 12, FG)
             text(s, r.get("channel", ""), (120, y + 34), 11, DIM, max_w=216)
@@ -1229,7 +1286,7 @@ class App:
             if items:
                 self.draw_thumb(items[0]["id"], 18, y + 7, 78, 44, idx)
             else:
-                pygame.draw.rect(s, TINTS[idx % len(TINTS)], (18, y + 7, 78, 44), border_radius=8)
+                self.draw_thumb(None, 18, y + 7, 78, 44, idx)
             self.draw_badge(str(len(items)), 92, y + 47)
             text(s, self.playlist_name(p), (110, y + 10), 15, FG, max_w=W - 150)
             text(s, self.n_videos(len(items)), (110, y + 32), 12, DIM)

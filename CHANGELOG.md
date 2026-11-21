@@ -5,6 +5,8 @@
 - Turkish interface and a Turkish Q on-screen keyboard (the keyboard key cycles EN → RU → TR).
 - Interface font is now Inter (bundled in `assets/fonts`); DejaVu Sans stays as a fallback.
 - One focus style everywhere: a purple ring that glides to the selected item; lists scroll smoothly under it.
+- Thumbnails have anti-aliased rounded corners; duration badges are translucent; the focused Home card grows slightly and its progress bar sits inside the thumbnail.
+- Loading placeholders shimmer.
 
 ## 1.0
 
