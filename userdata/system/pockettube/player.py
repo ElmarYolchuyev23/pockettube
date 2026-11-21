@@ -14,7 +14,7 @@ BLANK = "/sys/class/graphics/fb0/blank"
 DARK_AFTER = 8
 W, H = 640, 480
 
-WHITE, GREY, DARK, RED, BLACK = "FFFFFF", "AAAAAA", "272727", "3C21E6", "000000"
+WHITE, GREY, RED, BLACK = "FFFFFF", "AAAAAA", "3C21E6", "000000"
 ACCENT = "FF5C7C"
 
 
@@ -51,10 +51,6 @@ class Ass:
     def text(self, x, y, s, size=16, color=WHITE, an=7, bold=False):
         b = "\\b1" if bold else "\\b0"
         self.parts.append(f"{{\\an{an}\\pos({x},{y})\\fnDejaVu Sans\\fs{size}{b}\\bord0\\shad0\\1c&H{color}&\\1a&H00&}}{esc(s)}")
-
-    def poly(self, points, color):
-        path = "m " + " l ".join(f"{int(px)} {int(py)}" for px, py in points)
-        self.parts.append(f"{{\\an7\\pos(0,0)\\bord0\\shad0\\1c&H{color}&\\p1}}{path}{{\\p0}}")
 
     def data(self):
         return "\n".join(self.parts)

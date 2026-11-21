@@ -1,4 +1,4 @@
-import glob, json, os, queue, shutil, socket, subprocess, threading, time, urllib.request
+import glob, os, queue, shutil, socket, subprocess, threading, time, urllib.request
 
 import pygame
 

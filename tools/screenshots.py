@@ -4,7 +4,10 @@ os.environ["SDL_VIDEODRIVER"] = "dummy"
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTS = sys.argv[1] if len(sys.argv) > 1 else ""  # folder with DejaVu, used only as a fallback
-OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "docs", "screenshots")
+DOCS = os.path.join(ROOT, "docs", "screenshots")
+OUT = sys.argv[2] if len(sys.argv) > 2 else DOCS
+# the Ports carousel picture is the English Home screen; refreshed only together with the docs set
+CAROUSEL = os.path.join(ROOT, "userdata", "roms", "ports", "images", "pockettube-screenshot.png")
 os.makedirs(OUT, exist_ok=True)
 work = tempfile.mkdtemp()
 app_dir = os.path.join(work, "pockettube")
@@ -81,6 +84,8 @@ def shot(lang, name):
     app.anim_now = set()  # start animations from rest so each screenshot shows the settled state
     app.draw()
     pg.image.save(app.screen, os.path.join(OUT, f"{lang}-{name}.png"))
+    if (lang, name) == ("en", "home") and os.path.abspath(OUT) == os.path.abspath(DOCS):
+        pg.image.save(app.screen, CAROUSEL)
 
 
 for lang in ["en", "ru", "tr"]:
