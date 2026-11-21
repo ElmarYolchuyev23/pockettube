@@ -1,0 +1,95 @@
+name: Bug report
+description: Something doesn't work, crashes or looks wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please write in English, Russian or Turkish.
+
+        **Videos stopped opening?** YouTube changes often: first open **Settings → yt-dlp → Update** and try again. If the new version misbehaves, pick **Roll back**.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you post
+      options:
+        - label: I searched the [existing issues](https://github.com/ElmarYolchuyev23/pockettube/issues?q=is%3Aissue) and the [FAQ](https://github.com/ElmarYolchuyev23/pockettube#faq), and this hasn't been reported.
+          required: true
+        - label: I'm using the [latest release](https://github.com/ElmarYolchuyev23/pockettube/releases/latest).
+          required: true
+        - label: This is one problem. I'll open a separate issue for each other problem.
+          required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install PocketTube?
+      options:
+        - KNULLI / Batocera installer (pockettube-knulli zip)
+        - PortMaster port (pockettube-portmaster zip)
+        - muOS app (.muxapp)
+    validations:
+      required: true
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware and version
+      placeholder: e.g. muOS 2606.0 Andromeda, KNULLI Gladiator II, ROCKNIX 20251101
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: e.g. Anbernic RG40XX-H, RG35XX Plus, Miyoo Flip
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: PocketTube and yt-dlp versions
+      description: Both are shown in Settings.
+      placeholder: e.g. PocketTube 1.1, yt-dlp 2026.10.26
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what you saw instead. Error text from the screen helps a lot.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the video link if the problem is with one video.
+      placeholder: |
+        1. Search for "..."
+        2. Open the second result
+        3. Press A on Play
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        Reproduce the problem, quit the app, then paste the whole log file:
+        - **KNULLI / Batocera:** `/userdata/system/pockettube/app.log`
+        - **PortMaster:** `ports/pockettube/log.txt` (next to `PocketTube.sh` in your Ports folder)
+        - **muOS app:** `MUOS/application/PocketTube/launch.log`
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or anything else
+      description: A photo of the screen is fine.

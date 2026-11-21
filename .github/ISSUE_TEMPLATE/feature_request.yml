@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an idea or an improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please write in English, Russian or Turkish. One idea per issue.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you post
+      options:
+        - label: I searched the [existing issues](https://github.com/ElmarYolchuyev23/pockettube/issues?q=is%3Aissue), and this hasn't been suggested.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: Describe what you're trying to do and what gets in the way today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it work?
+      description: Which screen, which buttons. A sketch or a photo is welcome.
+
+  - type: input
+    id: device
+    attributes:
+      label: Your firmware and device
+      placeholder: e.g. KNULLI on RG35XX Plus
