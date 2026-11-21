@@ -139,15 +139,85 @@ def playlist_items(playlist_id):
             "items": [_entry(e) for e in info.get("entries") or [] if e and e.get("id") and len(e["id"]) == 11]}
 
 
-def related(video_id, count=12):
-    info = _list_dl.extract_info(f"https://www.youtube.com/watch?v={video_id}&list=RD{video_id}", download=False)
+_NEXT_URL = "https://www.youtube.com/youtubei/v1/next?prettyPrint=false"
+_NEXT_CLIENT = {"clientName": "WEB", "clientVersion": "2.20251101.00.00", "hl": "en"}
+
+
+def _seconds(text):
+    try:
+        sec = 0
+        for part in (text or "").strip().split(":"):
+            sec = sec * 60 + int(part)
+        return sec
+    except ValueError:
+        return 0
+
+
+def _runs(t):
+    return (t or {}).get("simpleText") or "".join(r.get("text", "") for r in (t or {}).get("runs") or [])
+
+
+def _from_lockup(lv):
+    """Related item in YouTube's newer lockupViewModel shape (2025+)."""
+    if lv.get("contentType") != "LOCKUP_CONTENT_TYPE_VIDEO" or len(lv.get("contentId") or "") != 11:
+        return None
+    md = lv.get("metadata", {}).get("lockupMetadataViewModel", {})
+    rows = md.get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows") or []
+    parts = (rows[0].get("metadataParts") or []) if rows else []
+    channel = parts[0].get("text", {}).get("content", "") if parts else ""
+    overlays = lv.get("contentImage", {}).get("thumbnailViewModel", {}).get("overlays") or []
+    badges = [b.get("thumbnailBadgeViewModel", {}).get("text", "") for o in overlays
+              for b in o.get("thumbnailBottomOverlayViewModel", {}).get("badges") or []]
+    duration = next((_seconds(b) for b in badges if _seconds(b)), 0)
+    return {"id": lv["contentId"], "title": md.get("title", {}).get("content", ""),
+            "channel": channel, "duration": duration, "live": not duration}
+
+
+def _from_compact(r):
+    """Related item in the older compactVideoRenderer shape."""
+    if len(r.get("videoId") or "") != 11:
+        return None
+    duration = _seconds(_runs(r.get("lengthText")))
+    return {"id": r["videoId"], "title": _runs(r.get("title")), "channel": _runs(r.get("shortBylineText")),
+            "duration": duration, "live": not duration}
+
+
+def _related_next(video_id):
+    body = json.dumps({"context": {"client": _NEXT_CLIENT}, "videoId": video_id}).encode()
+    req = urllib.request.Request(_NEXT_URL, data=body, headers={"Content-Type": "application/json",
+                                                                "User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        data = json.loads(r.read().decode("utf-8", "replace"))
+    results = (data.get("contents", {}).get("twoColumnWatchNextResults", {}).get("secondaryResults", {})
+               .get("secondaryResults", {}).get("results") or [])
     out = []
-    for e in info.get("entries") or []:
-        if e and e.get("id") and e["id"] != video_id and len(e["id"]) == 11:
-            out.append(_entry(e))
-        if len(out) >= count:
-            break
-    return out
+    for x in results:
+        if "lockupViewModel" in x:
+            out.append(_from_lockup(x["lockupViewModel"]))
+        elif "compactVideoRenderer" in x:
+            out.append(_from_compact(x["compactVideoRenderer"]))
+    return [v for v in out if v]
+
+
+def _related_mix(video_id):
+    """Older way: the video's auto-generated mix playlist. YouTube stopped serving it to yt-dlp in 2026."""
+    info = _list_dl.extract_info(f"https://www.youtube.com/watch?v={video_id}&list=RD{video_id}", download=False)
+    return [_entry(e) for e in info.get("entries") or [] if e and e.get("id") and len(e["id"]) == 11]
+
+
+def related(video_id, count=12):
+    try:
+        items = _related_next(video_id)
+    except Exception:
+        items = []
+    if not items:
+        items = _related_mix(video_id)
+    seen, out = {video_id}, []
+    for v in items:
+        if v["id"] not in seen:
+            seen.add(v["id"])
+            out.append(v)
+    return out[:count]
 
 
 def _height(info):

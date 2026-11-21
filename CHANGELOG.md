@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Related videos work again: they now come from YouTube's watch-page data, since YouTube stopped serving the video's mix playlist to yt-dlp. The old way stays as a fallback.
 - Turkish interface and a Turkish Q on-screen keyboard (the keyboard key cycles EN → RU → TR).
 - Interface font is now Inter (bundled in `assets/fonts`); DejaVu Sans stays as a fallback.
 - One focus style everywhere: a purple ring that glides to the selected item; lists scroll smoothly under it.
